@@ -14,6 +14,10 @@ defmodule Ascella.Application do
       # Start a worker by calling: Ascella.Worker.start_link(arg)
       # {Ascella.Worker, arg},
       # Start to serve requests, typically the last entry
+      # The launcher's Details panel: this start's secret (and its file, when
+      # no launcher handed one over) and the CPU sample. Before the endpoint,
+      # which asks it.
+      Ascella.LauncherDetails,
       AscellaWeb.Endpoint
     ]
 

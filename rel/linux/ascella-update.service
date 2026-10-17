@@ -1,0 +1,17 @@
+# Runs the updater when ascella-update.path sees a request. As its own
+# unit, not as a child of ascella.service, which update.sh stops. The
+# request names a version and nothing else; update.sh takes it for a version
+# number or not at all, downloads that release from the project's GitHub
+# releases, and puts the old version back if the new one does not answer.
+
+[Unit]
+Description=Ascella - install the update that was asked for
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ascella/update.sh --requested
+StateDirectory=ascella-update
+# A download on a phone's hotspot, a stop, a start and a wait for an answer.
+TimeoutStartSec=900

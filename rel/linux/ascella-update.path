@@ -1,0 +1,14 @@
+# The arbiter pressed "Download and install" for Ascella itself: the program
+# wrote the version it wants into this file. It could do the rest itself -
+# it is root - but update.sh stops ascella.service, and would take itself
+# down with it. ascella-update.service, outside that service, does the rest.
+
+[Unit]
+Description=Ascella - an update of Ascella was asked for
+
+[Path]
+PathExists=/var/lib/ascella/update/request
+Unit=ascella-update.service
+
+[Install]
+WantedBy=multi-user.target

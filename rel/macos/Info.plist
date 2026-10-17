@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  No LSFileQuarantineEnabled, and there must never be one: with it, every
+  file Ascella downloads (the other apps) would be quarantined like a browser
+  download. build_app.sh and test/ascella/release_files_test.exs both check.
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>Ascella</string>
+    <key>CFBundleIdentifier</key>
+    <string>cloud.zerotwo.ascella</string>
+    <key>CFBundleName</key>
+    <string>Ascella</string>
+    <key>CFBundleDisplayName</key>
+    <string>Ascella</string>
+    <key>CFBundleIconFile</key>
+    <string>Ascella</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundleVersion</key>
+    <string>__VERSION__</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>__MINIMUM_SYSTEM__</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>

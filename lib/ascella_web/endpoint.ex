@@ -35,6 +35,11 @@ defmodule AscellaWeb.Endpoint do
     plug Phoenix.CodeReloader
   end
 
+  # The launcher's Details panel - this machine, a secret, no proxy header, or
+  # a 404. Before the request logger, so a panel left open does not log its
+  # own polling into the log it shows. See the plug.
+  plug AscellaWeb.Plugs.LauncherStats
+
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 

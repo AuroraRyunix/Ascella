@@ -1,0 +1,59 @@
+# Ascella as a service: starts with the box, starts again when it falls over.
+# Installed by install.sh; kept current by update.sh. Settings an arbiter may
+# want to change are in /etc/ascella/ascella.env, not here - this file is
+# replaced by updates.
+
+[Unit]
+Description=Ascella - installs and runs the hall's other programs
+Documentation=https://github.com/AuroraRyunix/Ascella
+After=network.target
+
+[Service]
+Type=exec
+# Root, and on purpose. Ascella's whole job is to run other programs'
+# install.sh and update.sh, which write /opt, /etc/systemd/system and
+# /var/lib, add users and call systemctl. A service user would need all of
+# that handed to it piecemeal, which is root with extra steps and a sudoers
+# file nobody reads. What makes this tolerable: it listens on 127.0.0.1 and
+# nowhere else (ascella.env cannot change that), and it runs only scripts
+# that came from a release whose checksum it checked.
+WorkingDirectory=/var/lib/ascella
+
+Environment=HOME=/var/lib/ascella
+Environment=LANG=C.UTF-8
+Environment=ASCELLA_DATA=/var/lib/ascella
+Environment=PORT=4090
+# No Erlang distribution: no epmd, no node listening on the hall's network.
+Environment=RELEASE_DISTRIBUTION=none
+# The release writes its start-up configuration somewhere; not into /opt.
+Environment=RELEASE_TMP=/run/ascella
+RuntimeDirectory=ascella
+# Tells the program that "Download and install" has somebody to ask
+# (ascella-update.path), and where that somebody leaves its answer. Root
+# could run update.sh itself, but update.sh stops this service, and a
+# script started by this service dies with it: halfway through replacing
+# the program is the worst moment to find that out.
+Environment=ASCELLA_UPDATER=systemd
+Environment=ASCELLA_UPDATE_STATUS=/var/lib/ascella-update/status
+EnvironmentFile=-/etc/ascella/ascella.env
+
+ExecStart=/opt/ascella/current/bin/ascella start
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+
+# What hardening is left once the job is installing software. Deliberately
+# absent: ProtectSystem and ReadWritePaths (an installer writes /opt, /etc and
+# /var/lib, and a read-only system is an installer that fails at its first
+# step), ProtectHome, PrivateDevices, and MemoryDenyWriteExecute (the
+# runtime compiles code as it goes). NoNewPrivileges is absent too: an
+# installer that calls a setuid helper would fail in a way nobody guesses.
+# What stays costs an installer nothing.
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target

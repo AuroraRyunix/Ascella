@@ -1,0 +1,693 @@
+name: Build and release
+
+# Builds what people download - the Windows installer and its update feed,
+# the Windows portable zip, the Linux archives for x86_64 and arm64, the Mac
+# app for Apple Silicon - on
+# every push to main, each on its own kind of machine, and starts each one
+# to see that it answers. A release that is only built on the day it is
+# published is only tested on that day.
+#
+# It PUBLISHES when two things are true on main at once:
+#
+#   1. mix.exs names a version that has no GitHub release yet, and
+#   2. CHANGELOG.md has a section for exactly that version.
+#
+# So cutting a release is one commit: the version in mix.exs and the heading
+# in the changelog (docs/releasing.md). A version without notes publishes
+# nothing; neither does a push that changes neither. A tag `vX.Y.Z` pushed
+# by hand publishes too, under the same two conditions.
+#
+# The whole file follows OpenPairings' binaries.yml, which has published
+# some fifty releases this way; where it differs, the comment says why.
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+# Read-only everywhere but in the one job that publishes.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux on Ubuntu 22.04, not 24.04, and that is the point: the
+          # Erlang runtime inside the archive is linked against the C library
+          # of the machine that built it, and runs on that version or newer.
+          # 22.04 has glibc 2.35; Debian 12 and Raspberry Pi OS "Bookworm"
+          # have 2.36. An archive built on 24.04 (2.39) would not start on
+          # the Pi it is meant for. install.sh checks for 2.35 and says so.
+          - { runner: ubuntu-22.04, target: linux-x86_64 }
+          # GitHub's own arm64 runners, free for public repositories. A Pi
+          # is arm64 (with the 64-bit system; there is no 32-bit build).
+          - { runner: ubuntu-22.04-arm, target: linux-aarch64 }
+          - { runner: windows-latest, target: windows-x86_64 }
+          # macOS (2026-10-14): Ascella.app, zipped - docs/macos.md. Apple
+          # Silicon only; Intel Macs were dropped the same day, by the
+          # owner, with feeling.
+          - { runner: macos-15, target: macos-aarch64 }
+          # No Windows on ARM: Erlang publishes no build for it. It runs
+          # the x86_64 one under Windows' own emulation.
+
+    env:
+      MIX_ENV: prod
+      # One OTP everywhere. On Linux and Windows setup-beam installs it; on
+      # the Mac rel/macos/build_otp.sh compiles it, with this OpenSSL and
+      # this exact Elixir (setup-beam's "1.20" is the newest 1.20 there).
+      OTP_VERSION: "29.0.5"
+      OPENSSL_VERSION: "3.5.9"
+      ELIXIR_VERSION: "1.20.4"
+
+    steps:
+      # Pinned to commits; see ci.yml.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Not on the Mac: setup-beam installs erlef/otp_builds there, built on
+      # the newest runner for the newest macOS, and every program in it
+      # said "macOS 15 or newer". A Mac on 14 would not open the app.
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: runner.os != 'macOS'
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: "1.20"
+
+      # Everything compiled on the Mac - the runtime and whatever a
+      # dependency builds - for macOS 11, the first with Apple Silicon,
+      # rather than clang's default of the runner's own version.
+      - name: Build for macOS 11 and newer (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> "$GITHUB_ENV"
+
+      # Erlang/OTP and OpenSSL from source take a while; only the first run
+      # with a given set of versions pays. The script is in the key, so a
+      # change to how it builds is a new build too.
+      - name: Cache Erlang/OTP for macOS 11 (macOS)
+        if: runner.os == 'macOS'
+        id: otp-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/otp-macos
+          key: otp-${{ env.OTP_VERSION }}-openssl-${{ env.OPENSSL_VERSION }}-elixir-${{ env.ELIXIR_VERSION }}-macos${{ env.MACOSX_DEPLOYMENT_TARGET }}-${{ matrix.runner }}-${{ runner.arch }}-${{ hashFiles('rel/macos/build_otp.sh') }}
+
+      - name: Build Erlang/OTP and OpenSSL from source (macOS, not cached yet)
+        if: runner.os == 'macOS' && steps.otp-cache.outputs.cache-hit != 'true'
+        run: sh rel/macos/build_otp.sh "$HOME/otp-macos"
+
+      - name: Put Erlang/OTP and Elixir on the PATH (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "$HOME/otp-macos/otp/bin" >> "$GITHUB_PATH"
+          echo "$HOME/otp-macos/elixir/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/otp-macos/otp/bin:$HOME/otp-macos/elixir/bin:$PATH"
+          mix local.hex --force
+          mix local.rebar --force
+          elixir --version
+
+      # `_build/prod/lib` only - never `rel`, which is this run's output and
+      # must not come from an earlier commit. The deployment target is in
+      # the key: a NIF compiled (or downloaded) for another macOS must not
+      # come back from an older cache. It is empty off the Mac.
+      - name: Cache deps and compiled dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            deps
+            _build/prod/lib
+          key: release-${{ matrix.target }}-${{ matrix.runner }}-otp29.0.5-ex1.20-macos${{ env.MACOSX_DEPLOYMENT_TARGET }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            release-${{ matrix.target }}-${{ matrix.runner }}-otp29.0.5-ex1.20-macos${{ env.MACOSX_DEPLOYMENT_TARGET }}-
+
+      # The launcher (rel/windows/launcher.c) is compiled with `zig cc`.
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        if: runner.os == 'Windows'
+        with:
+          version: 0.15.2
+
+      - name: Check the C toolchain (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          gcc --version | Select-Object -First 1
+          mingw32-make --version | Select-Object -First 1
+
+      # Velopack's own library, which the launcher loads when the arbiter
+      # has said yes to an update. The same version as `vpk` below, and held
+      # to the checksum of that exact file: a different file fails here,
+      # loudly, and does not ship. (Version, address and checksum are the
+      # ones OpenPairings' workflow uses.)
+      - name: Fetch velopack_libc (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "1.2.0"
+          $url = "https://github.com/velopack/velopack/releases/download/$version/velopack_libc_$version.zip"
+          $expected = "547262ed7a1ab1ff62f580aa53851ede2f1a451ac61b8974eb7bc01117488835"
+          $zip = Join-Path $env:RUNNER_TEMP "velopack_libc.zip"
+          $dir = Join-Path $env:RUNNER_TEMP "velopack_libc"
+
+          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+
+          $actual = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) {
+            throw "velopack_libc_$version.zip: expected $expected, got $actual"
+          }
+
+          Expand-Archive -Path $zip -DestinationPath $dir -Force
+
+          # Under the name in the DLL's own export table, which is not the
+          # name of the file in the zip.
+          $dll = Join-Path $dir "lib\velopack_libc_win_x64_msvc.dll"
+          if (-not (Test-Path $dll)) { throw "No lib\velopack_libc_win_x64_msvc.dll in the zip." }
+          Copy-Item -Path $dll -Destination "rel\windows\velopack_libc.dll" -Force
+
+      - run: mix deps.get --only prod --check-locked
+
+      # Colocated JavaScript is generated by the compiler, before the assets.
+      - run: mix compile
+      - run: mix assets.deploy
+      - run: mix release ascella --overwrite
+
+      # What must be in it, per system. A step that skipped itself in
+      # mix.exs (no zig, no DLL) is a warning there and a failure here.
+      - name: Check the release is whole (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $rel = "_build\prod\rel\ascella"
+
+          foreach ($needed in @("Ascella.exe", "Ascella.bat", "velopack_libc.dll", "VERSION", "bin\ascella.bat")) {
+            if (-not (Test-Path (Join-Path $rel $needed))) { throw "The release has no $needed." }
+          }
+
+          if (-not (Get-ChildItem "$rel\erts-*\bin\vcruntime140.dll")) {
+            throw "The release has no C runtime beside erl.exe."
+          }
+
+          # Subsystem 2 is "Windows": no console window. One linker flag,
+          # invisible in the source, and a black window on an arbiter's
+          # screen when it is lost.
+          $bytes = [System.IO.File]::ReadAllBytes((Join-Path $rel "Ascella.exe"))
+          $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+          $subsystem = [BitConverter]::ToUInt16($bytes, $pe + 92)
+          if ($subsystem -ne 2) { throw "Ascella.exe has subsystem $subsystem, not 2: it would show a console window." }
+
+          $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo((Resolve-Path "$rel\Ascella.exe")).FileVersion
+          Write-Host "Ascella.exe $version"
+
+      - name: Check the release is whole (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          rel=_build/prod/rel/ascella
+
+          for needed in bin/ascella VERSION ascella.sh install.sh update.sh uninstall.sh \
+            ascella.service ascella-update.service ascella-update.path; do
+            [ -e "$rel/$needed" ] || { echo "::error::the release has no $needed"; exit 1; }
+          done
+
+          # What the runtime needs from the system it will run on.
+          ldd "$rel"/erts-*/bin/beam.smp | sed 's/^/  /'
+          echo "built against: $(getconf GNU_LIBC_VERSION)"
+
+      # Started the way a person starts it: no configuration but a place for
+      # the data and a spare port. It must answer, on loopback and nowhere
+      # else, without Erlang distribution. RELEASE_TMP is outside the
+      # release: what a start writes there (the cookie secret among it) must
+      # not be packed below.
+      - name: Start it and see that it answers (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export ASCELLA_DATA="$RUNNER_TEMP/ascella-data"
+          export RELEASE_TMP="$RUNNER_TEMP/ascella-tmp"
+          export PORT=4096
+          mkdir -p "$RELEASE_TMP"
+          rel=_build/prod/rel/ascella
+
+          "$rel/ascella.sh" >"$RUNNER_TEMP/ascella.log" 2>&1 &
+          pid=$!
+
+          body=""
+          for _ in $(seq 1 60); do
+            if body=$(curl -fsS --max-time 5 "http://127.0.0.1:$PORT/help" 2>/dev/null); then break; fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 2
+          done
+
+          status=0
+          if [ -n "$body" ]; then
+            listeners=$(ss -ltnp)
+            echo "$listeners"
+            if echo "$listeners" | awk '$1=="LISTEN"{print $4}' | grep -q ':4369$'; then
+              echo "::error::epmd is listening: Erlang distribution is on"
+              status=1
+            fi
+            beam=$(echo "$listeners" | awk '$1=="LISTEN" && $NF ~ /beam/ {print $4}' | sort -u)
+            if [ "$beam" != "127.0.0.1:$PORT" ]; then
+              echo "::error::the program listens on '$beam', not on 127.0.0.1:$PORT alone"
+              status=1
+            fi
+          fi
+
+          kill "$pid" 2>/dev/null || true
+
+          case "$body" in
+            *'id="manual"'*) echo "the release serves its help page" ;;
+            *) echo "::error::the release did not serve a page"; cat "$RUNNER_TEMP/ascella.log" || true; exit 1 ;;
+          esac
+
+          [ -s "$ASCELLA_DATA/secret_key_base" ] || { echo "::error::no secret_key_base in the data directory"; exit 1; }
+          [ ! -e "$rel/tmp" ] || [ -z "$(ls -A "$rel/tmp")" ] || { echo "::error::the start wrote into the release"; exit 1; }
+          exit "$status"
+
+      - name: Start it and see that it answers (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:ASCELLA_DATA = Join-Path $env:RUNNER_TEMP "ascella-data"
+          $env:RELEASE_TMP = Join-Path $env:RUNNER_TEMP "ascella-tmp"
+          $env:PORT = "4096"
+          New-Item -ItemType Directory -Force -Path $env:RELEASE_TMP | Out-Null
+          $rel = "_build\prod\rel\ascella"
+          $log = Join-Path $env:RUNNER_TEMP "ascella.log"
+
+          # Through Ascella.bat, not Ascella.exe: the same release, and a
+          # window on a machine without a desktop tests nothing.
+          $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "$rel\Ascella.bat" -PassThru `
+                    -RedirectStandardOutput $log -RedirectStandardError "$log.err" -NoNewWindow
+
+          $body = $null
+          foreach ($i in 1..60) {
+            try {
+              $body = (Invoke-WebRequest -Uri "http://127.0.0.1:4096/help" -TimeoutSec 5 -UseBasicParsing).Content
+              break
+            } catch {
+              if ($proc.HasExited) { break }
+              Start-Sleep -Seconds 2
+            }
+          }
+
+          $epmd = Get-NetTCPConnection -State Listen -LocalPort 4369 -ErrorAction SilentlyContinue
+          $wide = Get-NetTCPConnection -State Listen -LocalPort 4096 -ErrorAction SilentlyContinue |
+            Where-Object { $_.LocalAddress -ne "127.0.0.1" }
+
+          & taskkill /T /F /PID $proc.Id | Out-Null
+
+          if (-not $body -or $body -notmatch 'id="manual"') {
+            Write-Host "::error::the release did not serve a page"
+            if (Test-Path $log) { Get-Content $log }
+            if (Test-Path "$log.err") { Get-Content "$log.err" }
+            exit 1
+          }
+          if ($epmd) { throw "epmd is listening: Erlang distribution is on." }
+          if ($wide) { throw "The program listens beyond 127.0.0.1." }
+          if (Test-Path "$rel\tmp") {
+            if (Get-ChildItem "$rel\tmp" -Recurse -File) { throw "The start wrote into the release." }
+          }
+          $secret = Join-Path $env:ASCELLA_DATA "secret_key_base"
+          if (-not (Test-Path $secret) -or (Get-Item $secret).Length -eq 0) {
+            throw "No secret_key_base in the data directory."
+          }
+          Write-Host "the release serves its help page"
+
+      # --- the downloads ---------------------------------------------------
+      # File names without a version, all of them: the download page links
+      # to github.com/.../releases/latest/download/<name>, which only works
+      # for a name that is the same in every release. The version is inside
+      # (VERSION, the window's title, Setup's Properties page).
+
+      - name: Pack the Linux archive
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          mkdir -p dist
+          # One folder, "ascella", at the top: update.sh and install.sh look
+          # for exactly that.
+          tar -czf "dist/ascella-${{ matrix.target }}.tar.gz" -C _build/prod/rel ascella
+          ls -lh dist
+
+      # The three scripts, also as files of their own: install.sh is what
+      # the one-line install fetches before there is an archive to unpack.
+      # Once, from the x86_64 job - they are the same text on both.
+      - name: Add the installer scripts
+        if: matrix.target == 'linux-x86_64'
+        run: cp rel/linux/install.sh rel/linux/update.sh rel/linux/uninstall.sh dist/
+
+      - name: Pack the Windows portable zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "_build\prod\rel\ascella" -DestinationPath "dist\ascella-${{ matrix.target }}-portable.zip"
+          Get-ChildItem dist | Select-Object Name, Length
+
+      - name: Install vpk (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: dotnet tool install -g vpk --version 1.2.0
+
+      # For the delta package: `vpk pack` makes one only when the previous
+      # version's package is already in the output folder. Best effort: the
+      # first release has no previous one, and a network hiccup here must
+      # not cost a release - without it the update is the full package.
+      - name: Fetch the previous Windows release for delta packages
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $env:Path = "$env:USERPROFILE\.dotnet\tools;$env:Path"
+          vpk download github --repoUrl "https://github.com/${{ github.repository }}" --channel win --outputDir installer_out --token $env:GH_TOKEN
+
+          # On a re-run of a published version, "the latest release" is this
+          # one, and `vpk pack` refuses to pack over it.
+          $match = Select-String -Path mix.exs -Pattern 'version:\s*"([0-9]+\.[0-9]+\.[0-9]+)"' | Select-Object -First 1
+          $version = $match.Matches[0].Groups[1].Value
+          if (Test-Path installer_out) {
+            Get-ChildItem installer_out -Filter "*$version*.nupkg" -ErrorAction SilentlyContinue |
+              ForEach-Object { Remove-Item $_.FullName -Force }
+          }
+          exit 0
+
+      - name: Pack the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\.dotnet\tools;$env:Path"
+          .\rel\windows\build_installer.ps1 -PayloadDir "_build\prod\rel\ascella" -OutputDir installer_out
+
+          # Named, not globbed: the folder also holds Velopack's own notes
+          # (assets.win.json, RELEASES) and, after the download above, the
+          # previous version's package, which is already on its own release.
+          $version = (Get-Content "_build\prod\rel\ascella\VERSION" -Raw).Trim()
+          Copy-Item "installer_out\Ascella-Setup.exe" dist\
+          Copy-Item "installer_out\releases.win.json" dist\
+          Copy-Item "installer_out\AscellaApp-$version-*.nupkg" dist\
+          Get-ChildItem dist | Select-Object Name, Length
+
+      # --- macOS: Ascella.app, zipped ----------------------------------------
+      # The release inside a bundle whose executable is rel/macos/Launcher.swift,
+      # compiled here with swiftc: a Dock icon and a small window that says
+      # Ascella is running and stops it, the browser opened once the site
+      # answers. It runs rel/macos/launcher.sh to start and stop the server.
+      # build_app.sh also checks that no binary links to anything but the
+      # system (the runner has Homebrew, the hall's Mac does not), and writes
+      # the oldest macOS they all accept into Info.plist. docs/macos.md.
+      - name: Build Ascella.app (macOS)
+        if: runner.os == 'macOS'
+        run: sh rel/macos/build_app.sh _build/prod/rel/ascella _build/prod/rel
+
+      # Developer ID signing and notarisation: written, switched off until the
+      # Apple Developer account exists, and skipped while the certificate
+      # secret is empty. The secrets are named in rel/macos/sign_and_notarize.sh
+      # and docs/releasing.md. Asked in a step of its own rather than through
+      # the job's `env:`: job env reaches every step, the third-party actions
+      # above included, and only the two steps here should see a signing key.
+      - name: Is Apple signing set up? (macOS)
+        id: apple
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE_P12_BASE64" ]; then
+            echo "sign=true" >> "$GITHUB_OUTPUT"
+            echo "Apple signing secrets present - signing and notarising."
+          else
+            echo "sign=false" >> "$GITHUB_OUTPUT"
+            echo "No APPLE_CERTIFICATE_P12_BASE64 secret - the app ships ad-hoc signed (docs/macos.md)."
+          fi
+
+      - name: Sign and notarise Ascella.app (macOS, only with Apple secrets)
+        if: runner.os == 'macOS' && steps.apple.outputs.sign == 'true'
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: sh rel/macos/sign_and_notarize.sh _build/prod/rel/Ascella.app
+
+      # `ditto`, which keeps the bundle's modes and signature; a name without
+      # a version, like every other download.
+      - name: Pack the macOS zip
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent _build/prod/rel/Ascella.app "dist/ascella-${{ matrix.target }}.zip"
+          ls -lh dist
+
+      # The zip unpacked as an arbiter unpacks it, the bundle made READ-ONLY
+      # (a fresh download runs from a read-only, translocated copy), and
+      # started through the file Finder runs (with --headless: no window, no
+      # browser). First, that it is a Dock citizen: no LSUIElement, and the
+      # executable a Mach-O arm64 program. Then, as on Linux: it answers,
+      # on loopback alone, without distribution; and, for the app: a second
+      # start leaves at once, SIGTERM to the launcher stops the server,
+      # nothing is left running, the bundle's seal still verifies (nothing
+      # was written into it), and secret_key_base is in the data folder.
+      - name: Start the app and see that it answers (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          check="$RUNNER_TEMP/app-check"
+          rm -rf "$check"
+          mkdir -p "$check"
+          ditto -x -k "dist/ascella-${{ matrix.target }}.zip" "$check"
+          app="$check/Ascella.app"
+          launcher="$app/Contents/MacOS/Ascella"
+          chmod -R a-w "$app"
+
+          export ASCELLA_DATA="$RUNNER_TEMP/ascella-app-data"
+          export PORT=4096
+
+          status=0
+          fail() { echo "::error::$1"; status=1; }
+
+          # A Dock icon needs no LSUIElement, and an executable that is a
+          # real program: the compiled launcher, for Apple Silicon.
+          plist="$app/Contents/Info.plist"
+          if /usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$plist" >/dev/null 2>&1; then
+            fail "Info.plist has LSUIElement: the app would have no Dock icon"
+          fi
+          # Every app Ascella downloads would be quarantined with it.
+          if /usr/libexec/PlistBuddy -c 'Print :LSFileQuarantineEnabled' "$plist" >/dev/null 2>&1; then
+            fail "Info.plist has LSFileQuarantineEnabled: what Ascella downloads would be quarantined"
+          fi
+          exe=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$plist")
+          [ "$app/Contents/MacOS/$exe" = "$launcher" ] ||
+            fail "CFBundleExecutable is '$exe', not the launcher this test starts"
+          kind=$(file -b "$launcher")
+          echo "Contents/MacOS/$exe: $kind"
+          case "$kind" in
+            "Mach-O 64-bit executable arm64"*) ;;
+            *) fail "Contents/MacOS/$exe is not a Mach-O arm64 executable: $kind" ;;
+          esac
+
+          "$launcher" --headless > "$RUNNER_TEMP/ascella.log" 2>&1 &
+          pid=$!
+
+          body=""
+          for _ in $(seq 1 60); do
+            if body=$(curl -fsS --max-time 5 "http://127.0.0.1:$PORT/help" 2>/dev/null); then break; fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 2
+          done
+
+          case "$body" in
+            *'id="manual"'*) echo "the app serves its help page" ;;
+            *) echo "::error::the app did not serve a page"
+               cat "$RUNNER_TEMP/ascella.log" || true
+               kill "$pid" 2>/dev/null || true
+               exit 1 ;;
+          esac
+
+          # `lsof`, not `ss`: the macOS image has no iproute2.
+          listeners=$(lsof -nP -iTCP -sTCP:LISTEN)
+          echo "$listeners"
+          if echo "$listeners" | awk 'NR>1{print $9}' | grep -q ':4369$'; then
+            fail "epmd is listening: Erlang distribution is on"
+          fi
+          beam=$(echo "$listeners" | awk 'NR>1 && $1 ~ /beam/ {print $9}' | sort -u)
+          [ "$beam" = "127.0.0.1:$PORT" ] ||
+            fail "the program listens on '$beam', not on 127.0.0.1:$PORT alone"
+
+          "$launcher" --headless > "$RUNNER_TEMP/ascella-second.log" 2>&1 &
+          second=$!
+          for _ in $(seq 1 15); do
+            kill -0 "$second" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$second" 2>/dev/null; then
+            fail "a second start did not leave; it would have been a second server"
+            kill "$second" 2>/dev/null || true
+          fi
+
+          kill -TERM "$pid" 2>/dev/null || true
+          for _ in $(seq 1 30); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$pid" 2>/dev/null; then fail "the launcher did not stop within 30 seconds"; fi
+          if pgrep -fl "$check"; then
+            fail "something from the app is still running after the launcher stopped"
+            pkill -9 -f "$check" || true
+          fi
+
+          chmod -R u+w "$app"
+          codesign --verify --deep --strict "$app" ||
+            fail "the bundle's seal is broken: something was written into the app"
+          [ -s "$ASCELLA_DATA/secret_key_base" ] || fail "no secret_key_base in the data directory"
+
+          [ "$status" = 0 ] || cat "$RUNNER_TEMP/ascella.log" || true
+          exit "$status"
+
+      # On every push, not only for a release: this is also how a build is
+      # tried before anything is published (docs/macos.md, "Testing a build").
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release_assets_${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # The only job that can write to the repository. `needs: build`: nothing
+  # is published unless every target built and answered.
+  release:
+    name: Publish the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Work out which version this is, and whether to publish it
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          version=$(grep -m1 "version:" mix.exs | cut -d'"' -f2)
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Could not read a version out of mix.exs" >&2
+            exit 1
+          fi
+          tag="v${version}"
+
+          # A tag pushed by hand must be the version the code says it is:
+          # the assets were built from mix.exs, not from the tag's name.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$tag" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} was pushed, but mix.exs says ${version}"
+            exit 1
+          fi
+
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          publish=true
+
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "Release ${tag} already exists - nothing to publish."
+            publish=false
+          fi
+
+          # The notes are the changelog's section for this version, and a
+          # version without one is not released: "## [Unreleased]" is work
+          # in progress, whatever mix.exs says.
+          sh tools/release_notes.sh "$version" > release_notes.md || true
+          if [ "$publish" = true ] && [ ! -s release_notes.md ]; then
+            echo "::notice::CHANGELOG.md has no section '## [${version}]' - not publishing. Name the section and push."
+            publish=false
+          fi
+
+          echo "publish=${publish}" >> "$GITHUB_OUTPUT"
+
+      - name: Collect every target's files
+        if: steps.ver.outputs.publish == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release_assets_*
+          merge-multiple: true
+          path: dist
+
+      # Everything the download page and the two updaters will ask for by
+      # name. One missing is a release that half works; better none.
+      - name: Check the set is complete, and sum it
+        if: steps.ver.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd dist
+
+          for needed in \
+            Ascella-Setup.exe \
+            ascella-windows-x86_64-portable.zip \
+            ascella-linux-x86_64.tar.gz \
+            ascella-linux-aarch64.tar.gz \
+            ascella-macos-aarch64.zip \
+            install.sh update.sh uninstall.sh \
+            releases.win.json \
+            "AscellaApp-${VERSION}-full.nupkg"; do
+            [ -s "$needed" ] || { echo "::error::missing from the release: $needed"; exit 1; }
+          done
+
+          # update.sh and install.sh check their download against this file.
+          sha256sum -- * > ../SHA256SUMS
+          mv ../SHA256SUMS .
+          cat SHA256SUMS
+          ls -lh
+
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        if: steps.ver.outputs.publish == 'true'
+        with:
+          # Named, because on a push to main there is no tag to infer: the
+          # action makes this one, at the commit that was built.
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: Ascella ${{ steps.ver.outputs.version }}
+          body_path: release_notes.md
+          files: dist/*
+          fail_on_unmatched_files: true
+
+      # GitHub has answered "500" to a release it then created anyway; the
+      # action tried again and left empty drafts with the same tag. Only
+      # drafts, only this tag, only without files, and only once a published
+      # release exists.
+      - name: Remove empty duplicate drafts for this tag
+        if: steps.ver.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          releases=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+          published=$(echo "$releases" | jq --arg tag "$TAG" '[.[] | select(.tag_name == $tag and (.draft | not))] | length')
+          if [ "$published" -lt 1 ]; then
+            echo "No published release for ${TAG} - leaving every draft alone."
+            exit 0
+          fi
+          echo "$releases" |
+            jq -r --arg tag "$TAG" '.[] | select(.draft and .tag_name == $tag and (.assets | length) == 0) | .id' |
+            while read -r id; do
+              echo "Deleting empty duplicate draft ${id} for ${TAG}"
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" ||
+                echo "::warning::could not delete empty draft ${id} for ${TAG}"
+            done

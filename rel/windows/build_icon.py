@@ -1,0 +1,79 @@
+"""Draws rel/windows/Ascella.ico and rel/macos/Ascella-icon.png from the mark
+in priv/logo/mark.svg.
+
+The mark is eight squares on a 24-unit grid - a three-by-three with the
+middle left out, one of them in the accent; they are redrawn here rather
+than rendered from the SVG, because that needs a renderer nobody has
+installed and eight rectangles do not. (priv/logo/mark.svg is a copy of the
+brand's marks/ascella.svg.) If the mark changes, the squares
+below change with it - the script checks that the SVG still holds the ones
+it knows, and stops when it does not.
+
+    python rel/windows/build_icon.py
+
+Needs Pillow. Both files are committed: the launcher's resource script and
+`vpk pack --icon` want the .ico, rel/macos/build_app.sh wants the PNG, and CI
+should not need Python to make a release.
+"""
+
+import re
+from pathlib import Path
+
+from PIL import Image, ImageDraw
+
+HERE = Path(__file__).resolve().parent
+MARK = HERE.parent.parent / "priv" / "logo" / "mark.svg"
+
+INK = (27, 27, 26, 255)
+ACCENT = (179, 38, 30, 255)  # #b3261e, the mark's own --accent fallback
+PAPER = (255, 255, 255, 255)
+
+# (x, y) of each 6x6 square, in the SVG's own units.
+DARK = [(2, 2), (9, 2), (16, 2), (2, 9), (2, 16), (9, 16), (16, 16)]
+LIGHT = [(16, 9)]
+
+
+def check_mark():
+    svg = MARK.read_text(encoding="utf-8")
+    found = {(int(x), int(y)) for x, y in re.findall(r'<rect x="(\d+)" y="(\d+)" width="6"', svg)}
+    if found != set(DARK + LIGHT):
+        raise SystemExit(f"{MARK} no longer has the squares this script draws: {sorted(found)}")
+
+
+def draw(size, scale=16):
+    # Drawn large and scaled down: the small sizes get their edges from the
+    # resampling, not from rounding a 0.67-pixel gap to nothing.
+    side = 28 * scale
+    image = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    pen = ImageDraw.Draw(image)
+    pen.rounded_rectangle((0, 0, side - 1, side - 1), radius=4 * scale, fill=PAPER)
+
+    for squares, colour in ((DARK, INK), (LIGHT, ACCENT)):
+        for x, y in squares:
+            left, top = (x + 2) * scale, (y + 2) * scale
+            pen.rectangle((left, top, left + 6 * scale - 1, top + 6 * scale - 1), fill=colour)
+
+    return image.resize((size, size), Image.LANCZOS)
+
+
+def write_mac_png(path):
+    # macOS draws its icons inside a margin (824 of 1024); a tile that fills
+    # the canvas looks a size too big beside everybody else's in the Dock.
+    # Drawn at 32 units a pixel (896 square) so 824 is a step down, not up.
+    canvas = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    canvas.paste(draw(824, scale=32), (100, 100))
+    canvas.save(path)
+
+
+def main():
+    check_mark()
+    sizes = [256, 128, 64, 48, 32, 24, 16]
+    draw(256).save(HERE / "Ascella.ico", format="ICO", sizes=[(s, s) for s in sizes])
+    print(f"wrote {HERE / 'Ascella.ico'}")
+    png = HERE.parent / "macos" / "Ascella-icon.png"
+    write_mac_png(png)
+    print(f"wrote {png}")
+
+
+if __name__ == "__main__":
+    main()

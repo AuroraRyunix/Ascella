@@ -1,0 +1,40 @@
+/*
+ * Resources of Ascella.exe, compiled by `zig rc` from build_launcher.ps1.
+ *
+ * launcher_version.h is written by that script from the version in mix.exs
+ * and is not committed.
+ */
+
+#include "launcher_version.h"
+
+1 ICON "Ascella.ico"
+
+1 24 "launcher.manifest"
+
+1 VERSIONINFO
+FILEVERSION ASCELLA_VER_MAJOR, ASCELLA_VER_MINOR, ASCELLA_VER_PATCH, 0
+PRODUCTVERSION ASCELLA_VER_MAJOR, ASCELLA_VER_MINOR, ASCELLA_VER_PATCH, 0
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Ascella"
+            VALUE "FileDescription", "Ascella - installs and runs the hall programs"
+            VALUE "FileVersion", ASCELLA_VER_STRING
+            VALUE "InternalName", "Ascella"
+            VALUE "OriginalFilename", "Ascella.exe"
+            VALUE "ProductName", "Ascella"
+            VALUE "ProductVersion", ASCELLA_VER_STRING
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
