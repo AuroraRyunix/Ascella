@@ -1,0 +1,49 @@
+{
+  "apps": [
+    {
+      "id": "hallapp",
+      "name": "Hallapp",
+      "repo": "Example/Hallapp",
+      "layout": "hall",
+      "mark": "alnasl.svg",
+      "port": 4999,
+      "blurb": {"en": "Ships like Alnasl.", "nl": "Komt zoals Alnasl."}
+    },
+    {
+      "id": "zipapp",
+      "name": "Zipapp",
+      "repo": "Example/Zipapp",
+      "mark": "openpairings.svg",
+      "accent": ["#24503a", "#7fbf9c"],
+      "port": 4998,
+      "blurb": {"en": "Ships like OpenPairings.", "nl": "Komt zoals OpenPairings."},
+      "platforms": {
+        "windows-x86_64": {
+          "method": "velopack",
+          "setup": "Zipapp-{version}-win-Setup.exe",
+          "package": "ZipappApp-{version}-full.nupkg",
+          "pack_id": "ZipappApp",
+          "main_exe": "Zipapp.exe",
+          "window_class": "ZipappLauncher"
+        },
+        "macos-aarch64": {"method": "mac_app", "asset": "zipapp_app_macos_aarch64.zip", "bundle": "Zipapp.app"},
+        "linux-x86_64": {"method": "portable", "asset": "zipapp_portable_linux_x86_64.zip", "folder": "zipapp_portable", "start": "zipapp.sh"},
+        "linux-aarch64": {"method": "portable", "asset": "zipapp_portable_linux_aarch64.zip", "folder": "zipapp_portable", "start": "zipapp.sh"}
+      },
+      "data": {
+        "windows": ["{localappdata}/ZipappData", "{localappdata}/ZipappBackups", "{localappdata}/Zipapp"],
+        "macos": ["{home}/Library/Application Support/Zipapp"],
+        "linux": ["{home}/.local/share/Zipapp"]
+      }
+    },
+    {
+      "id": "ghost",
+      "name": "Ghost",
+      "repo": "Example/Ghost",
+      "layout": "hall",
+      "mark": "nunki.svg",
+      "port": null,
+      "blurb": {"en": "Not published yet.", "nl": "Nog niet gepubliceerd."}
+    }
+  ]
+}
