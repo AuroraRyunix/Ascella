@@ -1,0 +1,101 @@
+{
+  "about": "The apps Ascella manages. One entry per app. An entry with \"layout\": \"hall\" ships the way Alnasl does, and every name below is derived from \"name\" and \"id\" (Ascella.Catalogue, docs in README.md); write a field out only where an app differs. Repositories are on GitHub, and nothing else is accepted.",
+  "apps": [
+    {
+      "id": "openpairings",
+      "name": "OpenPairings",
+      "repo": "AuroraRyunix/OpenPairings",
+      "mark": "openpairings.svg",
+      "accent": ["#24503a", "#7fbf9c"],
+      "port": 4000,
+      "blurb": {
+        "en": "The tournament manager: players, pairings, results.",
+        "nl": "Het toernooiprogramma: spelers, paringen, uitslagen."
+      },
+      "platforms": {
+        "windows-x86_64": {
+          "method": "velopack",
+          "setup": "OpenPairings-{version}-win-Setup.exe",
+          "package": "OpenPairingsApp-{version}-full.nupkg",
+          "pack_id": "OpenPairingsApp",
+          "main_exe": "OpenPairings.exe",
+          "window_class": "OpenPairingsLauncher"
+        },
+        "macos-aarch64": {
+          "method": "mac_app",
+          "asset": "openpairings_app_macos_aarch64.zip",
+          "bundle": "OpenPairings.app"
+        },
+        "linux-x86_64": {
+          "method": "portable",
+          "asset": "openpairings_portable_linux_x86_64.zip",
+          "folder": "pairings_engine_portable",
+          "start": "openpairings.sh"
+        },
+        "linux-aarch64": {
+          "method": "portable",
+          "asset": "openpairings_portable_linux_aarch64.zip",
+          "folder": "pairings_engine_portable",
+          "start": "openpairings.sh"
+        }
+      },
+      "data": {
+        "windows": ["{localappdata}/OpenPairingsData", "{localappdata}/OpenPairingsBackups", "{localappdata}/OpenPairings"],
+        "macos": ["{home}/Library/Application Support/OpenPairings"],
+        "linux": ["{home}/.local/share/OpenPairings"]
+      }
+    },
+    {
+      "id": "alnasl",
+      "name": "Alnasl",
+      "repo": "AuroraRyunix/Alnasl",
+      "layout": "hall",
+      "mark": "alnasl.svg",
+      "accent": ["#7a2e1e", "#e2a08c"],
+      "port": 4040,
+      "blurb": {
+        "en": "Live boards: reads the boards and shows the games.",
+        "nl": "Live borden: leest de borden en toont de partijen."
+      }
+    },
+    {
+      "id": "arkab",
+      "name": "Arkab",
+      "repo": "AuroraRyunix/Arkab",
+      "layout": "hall",
+      "mark": "arkab.svg",
+      "accent": ["#7a2e1e", "#e2a08c"],
+      "port": 4050,
+      "blurb": {
+        "en": "The board bridge: sends a hall's boards to Alnasl.",
+        "nl": "De bordbrug: stuurt de borden van een zaal naar Alnasl."
+      }
+    },
+    {
+      "id": "polis",
+      "name": "Polis",
+      "repo": "AuroraRyunix/Polis",
+      "layout": "hall",
+      "mark": "polis.svg",
+      "accent": ["#1f4f8a", "#8fb8ec"],
+      "port": null,
+      "blurb": {
+        "en": "The print station: pairings and standings on paper.",
+        "nl": "Het printstation: paringen en standen op papier."
+      }
+    },
+    {
+      "id": "nunki",
+      "name": "Nunki",
+      "repo": "AuroraRyunix/Nunki",
+      "layout": "hall",
+      "mark": "nunki.svg",
+      "accent": ["#94600a", "#f0c46a"],
+      "port": null,
+      "blurb": {
+        "en": "The hall announcer: rounds, clocks and calls.",
+        "nl": "De zaalomroeper: rondes, klokken en mededelingen."
+      }
+    }
+  ]
+}

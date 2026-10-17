@@ -1,0 +1,59 @@
+<Layouts.app flash={@flash} locale={@locale} path="/help">
+  <article id="manual" class="manual">
+    <h1>{gettext("Help")}</h1>
+
+    <h2>{gettext("What Ascella does")}</h2>
+    <p>
+      {gettext(
+        "Ascella installs, updates, starts and stops the hall's programs on this computer: OpenPairings, Alnasl, Arkab, Polis and Nunki. Each tile says what is installed, what is out, and whether it runs."
+      )}
+    </p>
+
+    <h2>{gettext("Where the files come from")}</h2>
+    <p>
+      {gettext(
+        "Only from each program's own releases on GitHub, over HTTPS. Every file is checked against the checksums the release publishes before it is used; a release without checksums is not installed, and a file that does not match is thrown away. Nothing that was not checked is ever started."
+      )}
+    </p>
+
+    <h2>{gettext("Your data")}</h2>
+    <p>
+      {gettext(
+        "An update replaces a program, never its data: tournaments, games and settings stay where they are. Ascella refuses any step that would touch a program's data folder, and says so on the tile."
+      )}
+    </p>
+
+    <h2>{gettext("Updating")}</h2>
+    <p>
+      {gettext(
+        "A program that is running is stopped first, the way it stops itself, and started again afterwards. If it does not stop within a minute, nothing is changed and the tile says so. On a Mac the previous version is kept, and the tile offers to go back to it."
+      )}
+    </p>
+
+    <h2>{gettext("Per computer")}</h2>
+    <ul>
+      <li>
+        {gettext(
+          "Windows: the program's own installer for a first install, and its own updater (Velopack) after that. A copy installed for everyone, from the .msi, is left to the .msi."
+        )}
+      </li>
+      <li>
+        {gettext(
+          "Mac: the app is downloaded, checked, unpacked and put in Applications in place of the old one. Because Ascella fetched it, the Mac does not block it as a download from the internet."
+        )}
+      </li>
+      <li>
+        {gettext(
+          "Linux and Raspberry Pi: the program's own install and update scripts, and its own system service."
+        )}
+      </li>
+    </ul>
+
+    <h2>{gettext("Only this computer")}</h2>
+    <p>
+      {gettext(
+        "This page answers this computer only, never the hall's network: whoever reaches it can install programs. On a box without a screen, use an SSH tunnel to port 4090."
+      )}
+    </p>
+  </article>
+</Layouts.app>

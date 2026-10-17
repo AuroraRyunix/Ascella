@@ -28,7 +28,12 @@ config :ascella, AscellaWeb.Endpoint,
 # Configure LiveView
 config :phoenix_live_view,
   # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
-  root_tag_attribute: "phx-r"
+  root_tag_attribute: "phx-r",
+  # Windows without developer mode cannot symlink, and this app has no
+  # colocated assets that would need it.
+  colocated_assets: [disable_symlink_warning: true]
+
+config :ascella, AscellaWeb.Gettext, default_locale: "en", locales: ~w(en nl)
 
 # Configure esbuild (the version is required)
 config :esbuild,

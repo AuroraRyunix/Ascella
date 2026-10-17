@@ -201,6 +201,7 @@ defmodule Ascella.MixProject do
       "assets.setup": ["esbuild.install --if-missing"],
       "assets.build": ["compile", "esbuild ascella"],
       "assets.deploy": [
+        "esbuild.install --if-missing",
         "esbuild ascella --minify",
         "phx.digest"
       ],

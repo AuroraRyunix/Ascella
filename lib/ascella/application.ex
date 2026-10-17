@@ -9,11 +9,10 @@ defmodule Ascella.Application do
   def start(_type, _args) do
     children = [
       AscellaWeb.Telemetry,
-      {DNSCluster, query: Application.get_env(:ascella, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Ascella.PubSub},
-      # Start a worker by calling: Ascella.Worker.start_link(arg)
-      # {Ascella.Worker, arg},
-      # Start to serve requests, typically the last entry
+      {Task.Supervisor, name: Ascella.TaskSupervisor},
+      # What is installed, what is out, what is running.
+      Ascella.Apps,
       # The launcher's Details panel: this start's secret (and its file, when
       # no launcher handed one over) and the CPU sample. Before the endpoint,
       # which asks it.
