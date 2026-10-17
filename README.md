@@ -1,18 +1,117 @@
 # Ascella
 
-To start your Phoenix server:
+Ascella installs, updates, starts and stops the chess hall's programs on one
+computer: OpenPairings, Alnasl, Arkab, Polis and Nunki. It is one local page
+(<http://localhost:4090>, opened when Ascella starts) with a tile per program:
+its mark, the version installed, the version out, whether it runs, and
+Install / Update / Start / Stop / Open buttons. Update all does the lot, one
+program at a time.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+It never touches a program's data. Not on an update, not on a rollback, not
+when it is asked nicely. That is the whole design, and the rest is plumbing.
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+Named after zeta Sagittarii, which was there first.
 
-Ready to run in production? Please [check our deployment guides](https://phoenix.hexdocs.pm/deployment.html).
+## What it does, per system
 
-## Learn more
+Every action keeps to the same order: download and verify first, while the
+program still runs; unpack and check beside the running copy; stop the
+program politely and wait; swap; start it again if it was running. When the
+program does not stop, nothing is changed and the tile says so. Ascella
+never kills anything.
 
-* Official website: https://www.phoenixframework.org/
-* Guides: https://phoenix.hexdocs.pm/overview.html
-* Docs: https://phoenix.hexdocs.pm
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+| | install / update | stop | rollback |
+|---|---|---|---|
+| **Windows** | the program's own Velopack: `Setup.exe --silent` the first time, `Update.exe apply --norestart --package <verified .nupkg>` after. Installed-for-everyone copies (.msi) are left to their .msi | `WM_CLOSE` to the launcher window, the launcher's own no-questions close | none: Velopack keeps no previous version |
+| **macOS** | the release zip, unpacked with `ditto`, the `.app` swapped by renames in the same folder | `SIGTERM` to the app's launcher, which stops its server cleanly | the previous `.app` is kept in `.ascella-previous/` and swapped back |
+| **Linux / Pi** | the program's own `install.sh`, then its own `update.sh --from <verified folder>`; its own systemd unit runs it | `systemctl stop` | the program's previous release from `/opt/<id>/releases` |
+| **portable** (OpenPairings on Linux) | versions side by side in Ascella's folder, `current` switched by a rename | `SIGTERM` (Windows: `taskkill` without `/F`) | the previous version is still there |
+
+On Windows, programs are started through WMI, not as Ascella's children:
+Ascella's launcher holds what it starts in a job object that dies with it,
+and OpenPairings closing in round five because someone closed Ascella would
+be a poor advertisement.
+
+## Downloads, and what is trusted
+
+Only from the GitHub repositories in the catalogue, only over HTTPS, and
+redirects only to GitHub's own hosts. Every file is checked against the
+`SHA256SUMS` its release publishes, and checked again just before it is run.
+A release without `SHA256SUMS`, a file not on it, or a file whose sum is
+wrong is refused and deleted. Nothing unverified is ever unpacked or run.
+
+That catches a broken or swapped download, not a release that was bad when
+it was published: the sums come from the same release. That would take
+signatures, and nobody signs anything yet.
+
+## The data
+
+Each program's data directories are in the catalogue (`data`). `Ascella.Guard`
+refuses any write, move or delete that is in a data directory or contains
+one, and every installer goes through it. On Windows the install folder
+(`%LOCALAPPDATA%\<pack id>`, which Velopack's uninstall deletes whole) must
+not be a data folder and must not hold a database; a catalogue whose pack id
+names a data folder does not load. `test/ascella/data_safety_test.exs` runs
+install, update and rollback for every method against data directories full
+of files and checks them byte for byte afterwards.
+
+## The catalogue
+
+`priv/catalogue.json` (or the file `ASCELLA_CATALOGUE` names) is data, not
+code. A program that ships the way Alnasl does is one entry:
+
+```json
+{
+  "id": "polis",
+  "name": "Polis",
+  "repo": "AuroraRyunix/Polis",
+  "layout": "hall",
+  "mark": "polis.svg",
+  "accent": ["#1f4f8a", "#8fb8ec"],
+  "port": null,
+  "blurb": {"en": "Prints the hall's paper.", "nl": "Drukt het papier van de zaal."}
+}
+```
+
+`"layout": "hall"` means Alnasl's assets with the name filled in:
+`Polis-Setup.exe`, `PolisApp-{version}-full.nupkg`, `polis-macos-aarch64.zip`
+holding `Polis.app`, `polis-linux-<arch>.tar.gz` installed in `/opt/polis` as
+`polis.service`, data in `%LOCALAPPDATA%\PolisData`,
+`~/Library/Application Support/PolisData` and `/var/lib/polis`. Anything
+written out in `platforms` or `data` wins. The mark goes in `priv/marks/`.
+See `Ascella.Catalogue` for every field.
+
+## Settings
+
+| variable | what |
+|---|---|
+| `PORT` | the page's port, default 4090; always on 127.0.0.1 |
+| `ASCELLA_DATA` | Ascella's own folder (downloads, portable programs, its secret) |
+| `ASCELLA_CATALOGUE` | another catalogue |
+| `ASCELLA_APPS_DIR` | macOS: where the apps go, instead of `/Applications` (then `~/Applications`) |
+| `ASCELLA_RUN_AS` | Linux: the user portable programs run as when Ascella runs as root |
+
+On a box without a screen: `ssh -L 4090:127.0.0.1:4090 box`.
+
+## Installing Ascella
+
+Like Alnasl: a Velopack installer and a portable zip on Windows, a zipped
+`.app` on macOS 11 and newer (Apple Silicon), and `install.sh` with a systemd
+unit on Linux. On a Mac the first install is one manual step, because the
+app is not notarised: see [docs/macos.md](docs/macos.md). After that,
+nothing Ascella downloads is quarantined. Releasing: [docs/releasing.md](docs/releasing.md).
+
+## Developing
+
+```sh
+mix setup
+mix phx.server
+```
+
+The tests use a made-up catalogue (`test/fixtures/catalogue.json`), a fake
+GitHub and a fake computer in a temporary folder. They never run a real
+installer or touch a real program.
+
+## Licence
+
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
