@@ -19,7 +19,7 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
-- [Fix] **A program Ascella starts no longer inherits Ascella's environment.** Start on a Mac handed `open` (and Start on Linux handed the program) everything Ascella had exported, `PORT=4090` among it; Arkab read that, found Ascella answering on 4090, concluded it was already running, and left with a clear conscience. The start paths now unset `PORT`, `ASCELLA_*`, `RELEASE_*`, `ERL_*`, `MIX_*`, `ELIXIR_*`, `PHX_*` and the rest of the release's furniture. systemd and WMI do not inherit from Ascella and are left as they are.
+- [Fix] **A program Ascella starts now starts the way Finder or the Start menu would start it.** Start on a Mac handed `open` everything Ascella had exported, `PORT=4090` among it; Arkab read that, found Ascella answering on 4090, concluded it was already running, and left with a clear conscience. Programs are now started from an empty environment (`env -i`) with only `HOME`, `USER`, `LOGNAME`, the locale, a system `PATH` and, on Linux, the display session. A list of what to remove would only be a list of what we remembered. systemd and WMI already start clean and are left as they are.
 
 ## [0.1.0] - 2026-10-18
 

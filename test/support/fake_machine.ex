@@ -73,6 +73,12 @@ defmodule Ascella.FakeMachine do
     end)
   end
 
+  # A clean start: `env -i NAME=value... command args` runs the command.
+  defp handle(agent, ctx, "env", _p, ["-i" | rest], opts) do
+    [command | args] = Enum.drop_while(rest, &(&1 =~ ~r/\A[A-Z_]+=/))
+    handle(agent, ctx, Path.basename(command), command, args, opts)
+  end
+
   # --- macOS ------------------------------------------------------------------------
 
   defp handle(_agent, _ctx, "ditto", _p, ["-x", "-k", zip, dest], _opts) do

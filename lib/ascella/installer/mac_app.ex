@@ -112,7 +112,10 @@ defmodule Ascella.Installer.MacApp do
         {:error, :absent}
 
       dir ->
-        Installer.run(ctx, "open", [Path.join(dir, spec.bundle)], env: Ascella.CleanEnv.unsets())
+        {program, args} =
+          Ascella.CleanStart.command(:macos, "/usr/bin/open", [Path.join(dir, spec.bundle)])
+
+        Installer.run(ctx, program, args)
     end
   end
 
