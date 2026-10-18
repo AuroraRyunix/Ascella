@@ -1,0 +1,57 @@
+CI.System: Command Injection via `System` function,lib/ascella/runner/system.ex:32,7D3B5FA
+Config.CSP: Missing Content-Security-Policy,lib/ascella_web/router.ex:12,7962189
+Config.HTTPS: HTTPS Not Enabled,config/prod.exs:0,2B5C077
+DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/catalogue.ex:225,6C2F7FC
+DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/catalogue.ex:239,44CA3D6
+DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/launchers.ex:223,33B67AC
+Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launcher_details.ex:158,116F9B7
+Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launcher_details.ex:163,4A2F23C
+Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launchers.ex:138,59C0280
+Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launchers/linux.ex:72,7E66A27
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/fetch.ex:96,48B5F5
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers.ex:136,22796EF
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers.ex:182,50D0B87
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers.ex:378,5B79CF3
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers/linux.ex:69,4874995
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers/windows.ex:44,369632A
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/paths.ex:22,4B8BBDD
+Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/fs.ex:14,AD26BB
+Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/fs.ex:21,4A95CBB
+Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/fs.ex:39,4F3B48E
+Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/fs.ex:48,B8E9AE
+Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/launcher_details.ex:157,4EC06E7
+Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/updates.ex:100,2DD7B67
+Traversal.FileModule: Directory Traversal in `File.open`,lib/ascella/launcher_details/cli.ex:223,38C8AA8
+Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/catalogue.ex:100,778AB90
+Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/fetch.ex:143,6B48882
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer.ex:254,60E5375
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer/mac_app.ex:208,257CF22
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer/portable.ex:195,4927A0
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer/portable.ex:202,6436553
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer/velopack.ex:185,3398BCE
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/launcher_details/cli.ex:265,45F48E4
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/launchers.ex:150,625DBCA
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/launchers.ex:358,735D61A
+Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella_web/logo.ex:51,200D29
+Traversal.FileModule: Directory Traversal in `File.rm_rf`,lib/ascella/fs.ex:29,44C63ED
+Traversal.FileModule: Directory Traversal in `File.rm_rf`,lib/ascella/installer.ex:137,4409C12
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/fetch.ex:113,130CC1B
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/fetch.ex:114,601A5BE
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launcher_details.ex:133,1ABECDA
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers.ex:310,1EF5D2A
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers.ex:344,4EBC56D
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers.ex:346,2178630
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers/macos.ex:142,468EE40
+Traversal.FileModule: Directory Traversal in `File.stream!`,lib/ascella/fetch.ex:125,293561D
+Traversal.FileModule: Directory Traversal in `File.stream!`,lib/ascella/fetch.ex:170,3427E9C
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/fs.ex:40,3561CB3
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/launcher_details.ex:162,36C7505
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/launcher_details.ex:164,7EED28F
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/launchers.ex:138,506B7E6
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/launchers.ex:183,8CF3F3
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/launchers.ex:381,3B6DFF7
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/launchers/linux.ex:71,1704668
+Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/updates.ex:101,5F3D15D
+XSS.Raw: XSS,lib/ascella_web/components/layouts.ex:21,4D367E2
+XSS.Raw: XSS,lib/ascella_web/live/home_live.ex:540,621A752
+XSS.SendResp: XSS in `send_resp`,lib/ascella_web/controllers/help_controller.ex:20,4AE328F
