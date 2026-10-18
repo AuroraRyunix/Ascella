@@ -11,12 +11,12 @@ msgstr ""
 "Language: en\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: lib/ascella_web/words.ex:88
+#: lib/ascella_web/words.ex:119
 #, elixir-autogen, elixir-format
 msgid "%{program} stopped with code %{status}."
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:28
+#: lib/ascella_web/controllers/help_html/show.html.heex:32
 #, elixir-autogen, elixir-format
 msgid "A program that is running is stopped first, the way it stops itself, and started again afterwards. If it does not stop within a minute, nothing is changed and the tile says so. On a Mac the previous version is kept, and the tile offers to go back to it."
 msgstr ""
@@ -26,32 +26,33 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:21
+#: lib/ascella_web/controllers/help_html/show.html.heex:24
 #, elixir-autogen, elixir-format
 msgid "An update replaces a program, never its data: tournaments, games and settings stay where they are. Ascella refuses any step that would touch a program's data folder, and says so on the tile."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:120
+#: lib/ascella_web/live/home_live.ex:199
 #, elixir-autogen, elixir-format
 msgid "Ascella %{version} is out."
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:7
+#: lib/ascella_web/controllers/help_html/show.html.heex:8
 #, elixir-autogen, elixir-format
 msgid "Ascella installs, updates, starts and stops the hall's programs on this computer: OpenPairings, Alnasl, Arkab, Polis and Nunki. Each tile says what is installed, what is out, and whether it runs."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:33
+#: lib/ascella_web/live/home_live.ex:36
+#: lib/ascella_web/live/home_live.ex:141
 #, elixir-autogen, elixir-format
 msgid "Ascella is already busy with that app."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:68
+#: lib/ascella_web/live/home_live.ex:121
 #, elixir-autogen, elixir-format
 msgid "Ascella is updating itself. This page comes back in a minute."
 msgstr ""
 
-#: lib/ascella_web/words.ex:67
+#: lib/ascella_web/words.ex:79
 #, elixir-autogen, elixir-format
 msgid "Ascella runs as root and will not start apps as root. Set ASCELLA_RUN_AS to a user."
 msgstr ""
@@ -61,42 +62,42 @@ msgstr ""
 msgid "Ascella stopped answering"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:53
+#: lib/ascella_web/live/home_live.ex:106
 #, elixir-autogen, elixir-format
 msgid "Asking GitHub."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:260
+#: lib/ascella_web/live/home_live.ex:502
 #, elixir-autogen, elixir-format
 msgid "Back to %{version}"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:104
+#: lib/ascella_web/live/home_live.ex:183
 #, elixir-autogen, elixir-format
 msgid "Check for updates"
 msgstr ""
 
-#: lib/ascella_web/words.ex:94
+#: lib/ascella_web/words.ex:125
 #, elixir-autogen, elixir-format
 msgid "Could not ask GitHub"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:45
+#: lib/ascella_web/live/home_live.ex:98
 #, elixir-autogen, elixir-format
 msgid "Everything is up to date."
 msgstr ""
 
-#: lib/ascella_web/words.ex:35
+#: lib/ascella_web/words.ex:47
 #, elixir-autogen, elixir-format
 msgid "GitHub answered %{status}. Nothing was changed."
 msgstr ""
 
-#: lib/ascella_web/words.ex:32
+#: lib/ascella_web/words.ex:44
 #, elixir-autogen, elixir-format
 msgid "GitHub could not be reached. Nothing was changed."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:258
+#: lib/ascella_web/live/home_live.ex:500
 #, elixir-autogen, elixir-format
 msgid "Go back to %{version}?"
 msgstr ""
@@ -106,7 +107,7 @@ msgstr ""
 msgid "Going back"
 msgstr ""
 
-#: lib/ascella_web/words.ex:72
+#: lib/ascella_web/words.ex:103
 #, elixir-autogen, elixir-format
 msgid "Going back is not possible for this kind of install."
 msgstr ""
@@ -118,32 +119,32 @@ msgstr ""
 msgid "Help"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:125
+#: lib/ascella_web/live/home_live.ex:205
 #, elixir-autogen, elixir-format
 msgid "How to update"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:209
+#: lib/ascella_web/live/home_live.ex:436
 #, elixir-autogen, elixir-format
 msgid "Install"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:129
+#: lib/ascella_web/live/home_live.ex:209
 #, elixir-autogen, elixir-format
 msgid "Install and restart"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:158
+#: lib/ascella_web/live/home_live.ex:240
 #, elixir-autogen, elixir-format
 msgid "Installed"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:188
+#: lib/ascella_web/live/home_live.ex:273
 #, elixir-autogen, elixir-format
 msgid "Installed for everyone on this PC; updated with its .msi."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:97
+#: lib/ascella_web/live/home_live.ex:175
 #, elixir-autogen, elixir-format
 msgid "Installed, updated, started and stopped from here. Their data is never touched."
 msgstr ""
@@ -153,47 +154,47 @@ msgstr ""
 msgid "Installing"
 msgstr ""
 
-#: lib/ascella_web/words.ex:41
+#: lib/ascella_web/words.ex:53
 #, elixir-autogen, elixir-format
 msgid "It did not stop within a minute, so it was left as it was. Stop it yourself, then try again."
 msgstr ""
 
-#: lib/ascella_web/words.ex:50
+#: lib/ascella_web/words.ex:62
 #, elixir-autogen, elixir-format
 msgid "It is installed for everyone on this PC. Update it with the .msi, as an administrator."
 msgstr ""
 
-#: lib/ascella_web/words.ex:74
+#: lib/ascella_web/words.ex:105
 #, elixir-autogen, elixir-format
 msgid "It is not installed."
 msgstr ""
 
-#: lib/ascella_web/words.ex:46
+#: lib/ascella_web/words.ex:58
 #, elixir-autogen, elixir-format
 msgid "Its window could not be found to close it. Stop it yourself, then try again."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:171
+#: lib/ascella_web/live/home_live.ex:255
 #, elixir-autogen, elixir-format
 msgid "Latest"
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:46
+#: lib/ascella_web/controllers/help_html/show.html.heex:53
 #, elixir-autogen, elixir-format
 msgid "Linux and Raspberry Pi: the program's own install and update scripts, and its own system service."
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:41
+#: lib/ascella_web/controllers/help_html/show.html.heex:47
 #, elixir-autogen, elixir-format
 msgid "Mac: the app is downloaded, checked, unpacked and put in Applications in place of the old one. Because Ascella fetched it, the Mac does not block it as a download from the internet."
 msgstr ""
 
-#: lib/ascella_web/words.ex:82
+#: lib/ascella_web/words.ex:113
 #, elixir-autogen, elixir-format
 msgid "No Applications folder here can be written to."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:186
+#: lib/ascella_web/live/home_live.ex:270
 #, elixir-autogen, elixir-format
 msgid "No build for this computer."
 msgstr ""
@@ -203,57 +204,57 @@ msgstr ""
 msgid "No connection"
 msgstr ""
 
-#: lib/ascella_web/words.ex:18
+#: lib/ascella_web/words.ex:30
 #, elixir-autogen, elixir-format
 msgid "No release is known yet. Check for updates first."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:162
+#: lib/ascella_web/live/home_live.ex:245
 #, elixir-autogen, elixir-format
 msgid "Not installed"
 msgstr ""
 
-#: lib/ascella_web/words.ex:93
+#: lib/ascella_web/words.ex:124
 #, elixir-autogen, elixir-format
 msgid "Nothing published yet"
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:14
+#: lib/ascella_web/controllers/help_html/show.html.heex:16
 #, elixir-autogen, elixir-format
 msgid "Only from each program's own releases on GitHub, over HTTPS. Every file is checked against the checksums the release publishes before it is used; a release without checksums is not installed, and a file that does not match is thrown away. Nothing that was not checked is ever started."
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:52
+#: lib/ascella_web/controllers/help_html/show.html.heex:83
 #, elixir-autogen, elixir-format
 msgid "Only this computer"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:249
+#: lib/ascella_web/live/home_live.ex:480
 #, elixir-autogen, elixir-format
 msgid "Open"
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:33
+#: lib/ascella_web/controllers/help_html/show.html.heex:37
 #, elixir-autogen, elixir-format
 msgid "Per computer"
 msgstr ""
 
-#: lib/ascella_web/words.ex:56
+#: lib/ascella_web/words.ex:68
 #, elixir-autogen, elixir-format
 msgid "Refused: %{file} lies in the install folder %{folder}, which an update may remove. Move the data out first."
 msgstr ""
 
-#: lib/ascella_web/words.ex:63
+#: lib/ascella_web/words.ex:75
 #, elixir-autogen, elixir-format
 msgid "Refused: that would touch %{dir}, the data of %{app}."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:152
+#: lib/ascella_web/live/home_live.ex:234
 #, elixir-autogen, elixir-format
 msgid "Running"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:229
+#: lib/ascella_web/live/home_live.ex:458
 #, elixir-autogen, elixir-format
 msgid "Start"
 msgstr ""
@@ -263,12 +264,12 @@ msgstr ""
 msgid "Starting"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:239
+#: lib/ascella_web/live/home_live.ex:469
 #, elixir-autogen, elixir-format
 msgid "Stop"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:152
+#: lib/ascella_web/live/home_live.ex:234
 #, elixir-autogen, elixir-format
 msgid "Stopped"
 msgstr ""
@@ -278,62 +279,62 @@ msgstr ""
 msgid "Stopping"
 msgstr ""
 
-#: lib/ascella_web/words.ex:73
+#: lib/ascella_web/words.ex:104
 #, elixir-autogen, elixir-format
 msgid "That version is already installed."
 msgstr ""
 
-#: lib/ascella_web/words.ex:85
+#: lib/ascella_web/words.ex:116
 #, elixir-autogen, elixir-format
 msgid "The download changed after it was checked, and was not run."
 msgstr ""
 
-#: lib/ascella_web/words.ex:27
+#: lib/ascella_web/words.ex:39
 #, elixir-autogen, elixir-format
 msgid "The download does not match its checksum. Nothing was changed."
 msgstr ""
 
-#: lib/ascella_web/words.ex:79
+#: lib/ascella_web/words.ex:110
 #, elixir-autogen, elixir-format
 msgid "The download holds another version than its release says."
 msgstr ""
 
-#: lib/ascella_web/words.ex:30
+#: lib/ascella_web/words.ex:42
 #, elixir-autogen, elixir-format
 msgid "The download was sent somewhere other than GitHub, and was refused."
 msgstr ""
 
-#: lib/ascella_web/words.ex:24
+#: lib/ascella_web/words.ex:36
 #, elixir-autogen, elixir-format
 msgid "The file is not in the release's checksums, so it was not used."
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:95
+#: lib/ascella_web/live/home_live.ex:172
 #, elixir-autogen, elixir-format
 msgid "The hall's programs"
 msgstr ""
 
-#: lib/ascella_web/words.ex:37
+#: lib/ascella_web/words.ex:49
 #, elixir-autogen, elixir-format
 msgid "The release has no file for this computer."
 msgstr ""
 
-#: lib/ascella_web/words.ex:75
+#: lib/ascella_web/words.ex:106
 #, elixir-autogen, elixir-format
 msgid "There is no build for this computer."
 msgstr ""
 
-#: lib/ascella_web/words.ex:71
+#: lib/ascella_web/words.ex:102
 #, elixir-autogen, elixir-format
 msgid "There is no previous version to go back to."
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:54
+#: lib/ascella_web/controllers/help_html/show.html.heex:86
 #, elixir-autogen, elixir-format
 msgid "This page answers this computer only, never the hall's network: whoever reaches it can install programs. On a box without a screen, use an SSH tunnel to port 4090."
 msgstr ""
 
-#: lib/ascella_web/words.ex:21
+#: lib/ascella_web/words.ex:33
 #, elixir-autogen, elixir-format
 msgid "This release publishes no checksums, so nothing was installed."
 msgstr ""
@@ -344,28 +345,28 @@ msgstr ""
 msgid "Trying again"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:166
+#: lib/ascella_web/live/home_live.ex:249
 #, elixir-autogen, elixir-format
 msgid "Unknown version"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:112
+#: lib/ascella_web/live/home_live.ex:192
 #, elixir-autogen, elixir-format
 msgid "Update all"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:219
+#: lib/ascella_web/live/home_live.ex:447
 #, elixir-autogen, elixir-format
 msgid "Update to %{version}"
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:26
+#: lib/ascella_web/controllers/help_html/show.html.heex:29
 #: lib/ascella_web/words.ex:10
 #, elixir-autogen, elixir-format
 msgid "Updating"
 msgstr ""
 
-#: lib/ascella_web/words.ex:14
+#: lib/ascella_web/words.ex:15
 #, elixir-autogen, elixir-format
 msgid "Waiting its turn"
 msgstr ""
@@ -375,22 +376,22 @@ msgstr ""
 msgid "What Ascella does"
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:12
+#: lib/ascella_web/controllers/help_html/show.html.heex:13
 #, elixir-autogen, elixir-format
 msgid "Where the files come from"
 msgstr ""
 
-#: lib/ascella_web/words.ex:76
+#: lib/ascella_web/words.ex:107
 #, elixir-autogen, elixir-format
 msgid "Windows did not say where LOCALAPPDATA is."
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:36
+#: lib/ascella_web/controllers/help_html/show.html.heex:41
 #, elixir-autogen, elixir-format
 msgid "Windows: the program's own installer for a first install, and its own updater (Velopack) after that. A copy installed for everyone, from the .msi, is left to the .msi."
 msgstr ""
 
-#: lib/ascella_web/controllers/help_html/show.html.heex:19
+#: lib/ascella_web/controllers/help_html/show.html.heex:21
 #, elixir-autogen, elixir-format
 msgid "Your data"
 msgstr ""
@@ -400,7 +401,227 @@ msgstr ""
 msgid "close"
 msgstr ""
 
-#: lib/ascella_web/live/home_live.ex:176
+#: lib/ascella_web/live/home_live.ex:260
 #, elixir-autogen, elixir-format
 msgid "new"
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:400
+#, elixir-autogen, elixir-format
+msgid "Also delete its data"
+msgstr ""
+
+#: lib/ascella_web/words.ex:22
+#, elixir-autogen, elixir-format
+msgid "Among the favourites"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:5
+#, elixir-autogen, elixir-format
+msgid "Ascella cannot remove itself while it runs, and a program that tries is the sort that leaves a mess. So here are the steps. Removing Ascella does not remove the programs it installed, and it does not touch their data; remove those first from their tiles if you want them gone."
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:52
+#, elixir-autogen, elixir-format
+msgid "Back to the help"
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:377
+#: lib/ascella_web/live/home_live.ex:414
+#, elixir-autogen, elixir-format
+msgid "Cancel"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:13
+#, elixir-autogen, elixir-format
+msgid "Close Ascella."
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:30
+#, elixir-autogen, elixir-format
+msgid "Drag Ascella.app from Applications to the Bin."
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/show.html.heex:79
+#, elixir-autogen, elixir-format
+msgid "How to remove Ascella itself"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:42
+#, elixir-autogen, elixir-format
+msgid "In a terminal:"
+msgstr ""
+
+#: lib/ascella_web/words.ex:17
+#, elixir-autogen, elixir-format
+msgid "In the Start menu"
+msgstr ""
+
+#: lib/ascella_web/words.ex:21
+#, elixir-autogen, elixir-format
+msgid "In the applications menu"
+msgstr ""
+
+#: lib/ascella_web/words.ex:95
+#, elixir-autogen, elixir-format, fuzzy
+msgid "It is installed for everyone on this PC. Remove it with the .msi, as an administrator."
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:18
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:32
+#, elixir-autogen, elixir-format
+msgid "Its data stays in %{folder}. Delete that folder yourself if you want it gone."
+msgstr ""
+
+#: lib/ascella_web/words.ex:100
+#, elixir-autogen, elixir-format
+msgid "Its uninstaller ran, but the program is still there. Look again in a minute."
+msgstr ""
+
+#: lib/ascella_web/words.ex:19
+#, elixir-autogen, elixir-format
+msgid "Keep in the Dock"
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:356
+#, elixir-autogen, elixir-format
+msgid "Last check. This deletes the data of %{name} for good: tournaments, games, settings. There is no Bin for it."
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:286
+#, elixir-autogen, elixir-format
+msgid "Make %{name} easy to start?"
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:306
+#, elixir-autogen, elixir-format
+msgid "No thanks"
+msgstr ""
+
+#: lib/ascella_web/words.ex:91
+#, elixir-autogen, elixir-format
+msgid "Not removed: %{path} is not in a folder Ascella makes shortcuts in."
+msgstr ""
+
+#: lib/ascella_web/words.ex:18
+#, elixir-autogen, elixir-format
+msgid "On the Desktop"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/show.html.heex:62
+#, elixir-autogen, elixir-format
+msgid "Once a program is installed, its tile offers to make it easy to start. Windows: a Start menu and a Desktop shortcut; to pin it to the taskbar, right-click the Start menu shortcut and choose Pin to taskbar (Windows offers no other way). Mac: keep it in the Dock, or open it at login. Linux: an entry in the applications menu, a file on the Desktop, and GNOME's favourites. Ascella writes down what it made and removes only that; a shortcut you made yourself is never touched. After an update the shortcuts are made again, so they never point at an old version."
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:15
+#, elixir-autogen, elixir-format
+msgid "Open Settings, Apps, Installed apps, find Ascella and choose Uninstall."
+msgstr ""
+
+#: lib/ascella_web/words.ex:20
+#, elixir-autogen, elixir-format
+msgid "Open at login"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:29
+#, elixir-autogen, elixir-format
+msgid "Quit Ascella from the Dock or its menu."
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:405
+#: lib/ascella_web/live/home_live.ex:490
+#, elixir-autogen, elixir-format
+msgid "Remove"
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:382
+#, elixir-autogen, elixir-format
+msgid "Remove %{name}? It is stopped first, and the shortcuts Ascella made for it go too. Its data (tournaments, games, settings) is kept in its own folders, outside the program, so removing it takes none of that."
+msgstr ""
+
+#: lib/ascella_web/controllers/help_controller.ex:10
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:3
+#, elixir-autogen, elixir-format
+msgid "Remove Ascella"
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:369
+#, elixir-autogen, elixir-format
+msgid "Remove it and delete the data"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/show.html.heex:70
+#, elixir-autogen, elixir-format
+msgid "Remove on a tile stops the program, then removes it the way the computer does: its own uninstaller on Windows, the Bin on a Mac, its service and folder on Linux. The shortcuts Ascella made go with it. Its data (tournaments, games, settings) lives in separate folders and is kept; it is deleted only if you tick the box and then confirm a second time."
+msgstr ""
+
+#: lib/ascella_web/words.ex:14
+#, elixir-autogen, elixir-format
+msgid "Removing"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/show.html.heex:75
+#, elixir-autogen, elixir-format
+msgid "Removing Ascella"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/show.html.heex:67
+#, elixir-autogen, elixir-format
+msgid "Removing a program"
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/show.html.heex:59
+#: lib/ascella_web/live/home_live.ex:312
+#, elixir-autogen, elixir-format
+msgid "Shortcuts"
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:340
+#, elixir-autogen, elixir-format
+msgid "Show the shortcut"
+msgstr ""
+
+#: lib/ascella_web/words.ex:84
+#, elixir-autogen, elixir-format
+msgid "Something with that name is already there, not made by Ascella. Left alone."
+msgstr ""
+
+#: lib/ascella_web/words.ex:86
+#, elixir-autogen, elixir-format
+msgid "That is not possible on this computer."
+msgstr ""
+
+#: lib/ascella_web/controllers/help_html/remove_self.html.heex:45
+#, elixir-autogen, elixir-format
+msgid "That stops and removes the service and the program. Its data stays in %{folder}; delete it yourself if you want it gone."
+msgstr ""
+
+#: lib/ascella_web/words.ex:88
+#, elixir-autogen, elixir-format
+msgid "The shortcut was not made."
+msgstr ""
+
+#: lib/ascella_web/words.ex:87
+#, elixir-autogen, elixir-format
+msgid "There is nothing to start from a shortcut."
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:330
+#, elixir-autogen, elixir-format
+msgid "To pin it to the taskbar: right-click it in the Start menu, then Pin to taskbar."
+msgstr ""
+
+#: lib/ascella_web/words.ex:25
+#, elixir-autogen, elixir-format
+msgid "Yes, keep it in the Dock"
+msgstr ""
+
+#: lib/ascella_web/words.ex:24
+#, elixir-autogen, elixir-format
+msgid "Yes, put it in the Start menu"
+msgstr ""
+
+#: lib/ascella_web/words.ex:26
+#, elixir-autogen, elixir-format
+msgid "Yes, put it in the applications menu"
 msgstr ""

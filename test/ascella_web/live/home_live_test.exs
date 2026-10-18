@@ -13,7 +13,10 @@ defmodule AscellaWeb.HomeLiveTest do
   setup do
     FakeRunner.reset()
     ctx = Context.current()
-    for dir <- [ctx.local_app_data, ctx.downloads, ctx.programs], do: File.rm_rf!(dir)
+
+    for dir <- [ctx.local_app_data, ctx.downloads, ctx.programs, ctx.start_menu, ctx.launchers],
+        do: File.rm_rf!(dir)
+
     Apps.look_now()
     _ = Apps.tiles()
     on_exit(&FakeRunner.reset/0)
@@ -67,6 +70,79 @@ defmodule AscellaWeb.HomeLiveTest do
   test "a request for another host than this machine is turned away" do
     conn = %{build_conn() | host: "hall-laptop.example"} |> get(~p"/")
     assert conn.status == 403
+  end
+
+  test "after an install shortcuts are offered; yes makes one, Remove takes app and shortcut away",
+       %{conn: conn} do
+    ctx = Context.current()
+    FakeMachine.start(ctx)
+
+    FakeGitHub.serve(%{
+      "Example/Hallapp" => %{version: "2.0.0", files: %{"Hallapp-Setup.exe" => "setup"}}
+    })
+
+    Apps.subscribe()
+    {:ok, view, _html} = live(conn, ~p"/")
+    Apps.check_now()
+    assert_receive :apps_changed, 5_000
+    view |> element("#install-hallapp") |> render_click()
+    wait_until_idle("hallapp")
+
+    assert has_element?(view, "#offer-hallapp")
+    view |> element("#offer-yes-hallapp") |> render_click()
+    assert File.exists?(Path.join(ctx.start_menu, "Hallapp.lnk"))
+    refute has_element?(view, "#offer-hallapp")
+    assert has_element?(view, "#note-hallapp")
+    assert has_element?(view, "#launcher-hallapp-start_menu[checked]")
+
+    # The checkbox is the same switch, the other way.
+    view |> element("#launcher-hallapp-start_menu") |> render_click()
+    refute File.exists?(Path.join(ctx.start_menu, "Hallapp.lnk"))
+    view |> element("#launcher-hallapp-start_menu") |> render_click()
+    assert File.exists?(Path.join(ctx.start_menu, "Hallapp.lnk"))
+
+    view |> element("#remove-hallapp") |> render_click()
+    assert has_element?(view, "#remove-panel-hallapp")
+    view |> form("#remove-form-hallapp") |> render_submit()
+    wait_until_idle("hallapp")
+
+    assert has_element?(view, "#install-hallapp")
+    refute File.exists?(Path.join(ctx.start_menu, "Hallapp.lnk"))
+  end
+
+  test "deleting the data takes a second confirmation", %{conn: conn} do
+    ctx = Context.current()
+    FakeMachine.start(ctx)
+
+    FakeGitHub.serve(%{
+      "Example/Hallapp" => %{version: "2.0.0", files: %{"Hallapp-Setup.exe" => "setup"}}
+    })
+
+    Apps.subscribe()
+    {:ok, view, _html} = live(conn, ~p"/")
+    Apps.check_now()
+    assert_receive :apps_changed, 5_000
+    view |> element("#install-hallapp") |> render_click()
+    wait_until_idle("hallapp")
+
+    data = Path.join(ctx.local_app_data, "HallappData")
+    File.mkdir_p!(data)
+    File.write!(Path.join(data, "t.db"), "round five")
+
+    view |> element("#remove-hallapp") |> render_click()
+    view |> form("#remove-form-hallapp", %{"delete_data" => "true"}) |> render_submit()
+    # Nothing is gone yet: the page asks again.
+    assert File.exists?(Path.join(data, "t.db"))
+    assert has_element?(view, "#remove-data-yes-hallapp")
+
+    view |> element("#remove-data-yes-hallapp") |> render_click()
+    wait_until_idle("hallapp")
+    refute File.exists?(data)
+  end
+
+  test "the page for removing Ascella itself names all three systems", %{conn: conn} do
+    html = conn |> get(~p"/remove-ascella") |> html_response(200)
+    for id <- ~w(remove-windows remove-macos remove-linux), do: assert(html =~ ~s(id="#{id}"))
   end
 
   defp wait_until_idle(id, tries \\ 50) do

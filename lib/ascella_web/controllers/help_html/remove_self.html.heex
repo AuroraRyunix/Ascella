@@ -1,0 +1,54 @@
+<Layouts.app flash={@flash} locale={@locale} path="/remove-ascella">
+  <article id="remove-ascella" class="manual">
+    <h1>{gettext("Remove Ascella")}</h1>
+    <p>
+      {gettext(
+        "Ascella cannot remove itself while it runs, and a program that tries is the sort that leaves a mess. So here are the steps. Removing Ascella does not remove the programs it installed, and it does not touch their data; remove those first from their tiles if you want them gone."
+      )}
+    </p>
+
+    <section id="remove-windows" class={[@family == :windows && "this-system"]}>
+      <h2>Windows</h2>
+      <ol>
+        <li>{gettext("Close Ascella.")}</li>
+        <li>
+          {gettext("Open Settings, Apps, Installed apps, find Ascella and choose Uninstall.")}
+        </li>
+        <li>
+          {gettext(
+            "Its data stays in %{folder}. Delete that folder yourself if you want it gone.",
+            folder: "%LOCALAPPDATA%\\AscellaData"
+          )}
+        </li>
+      </ol>
+    </section>
+
+    <section id="remove-macos" class={[@family == :macos && "this-system"]}>
+      <h2>Mac</h2>
+      <ol>
+        <li>{gettext("Quit Ascella from the Dock or its menu.")}</li>
+        <li>{gettext("Drag Ascella.app from Applications to the Bin.")}</li>
+        <li>
+          {gettext(
+            "Its data stays in %{folder}. Delete that folder yourself if you want it gone.",
+            folder: "~/Library/Application Support/AscellaData"
+          )}
+        </li>
+      </ol>
+    </section>
+
+    <section id="remove-linux" class={[@family == :linux && "this-system"]}>
+      <h2>Linux</h2>
+      <p>{gettext("In a terminal:")}</p>
+      <pre phx-no-curly-interpolation>sudo sh /opt/ascella/uninstall.sh</pre>
+      <p>
+        {gettext(
+          "That stops and removes the service and the program. Its data stays in %{folder}; delete it yourself if you want it gone.",
+          folder: "/var/lib/ascella"
+        )}
+      </p>
+    </section>
+
+    <p><a href={~p"/help"}>{gettext("Back to the help")}</a></p>
+  </article>
+</Layouts.app>

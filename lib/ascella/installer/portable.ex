@@ -128,6 +128,10 @@ defmodule Ascella.Installer.Portable do
     end
   end
 
+  # Ascella made every file of it, in its own folder: that folder goes.
+  @impl true
+  def uninstall(app, _spec, ctx), do: Fs.rm_rf(base(app, ctx), ctx)
+
   @impl true
   def start(app, spec, %{family: :windows} = ctx) do
     with {:ok, path} <- start_path(app, spec, ctx), do: Installer.start_detached(ctx, path)

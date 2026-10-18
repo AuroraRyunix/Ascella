@@ -24,6 +24,7 @@ defmodule AscellaWeb.Router do
     end
 
     get "/help", HelpController, :show
+    get "/remove-ascella", HelpController, :remove_self
   end
 
   scope "/", AscellaWeb do

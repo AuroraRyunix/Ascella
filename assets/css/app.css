@@ -503,6 +503,47 @@ ul {
   margin-top: 0.4rem;
 }
 
+/* --- shortcuts and removal ------------------------------------------------- */
+
+.launchers,
+.remove-panel {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.remove-panel {
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.launchers summary {
+  cursor: pointer;
+  color: var(--quiet);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  cursor: pointer;
+}
+
+.offer-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-danger {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: var(--panel);
+}
+
 /* --- flash ------------------------------------------------------------------- */
 
 .flashes {
@@ -582,4 +623,9 @@ ul {
   .intro-actions .btn {
     justify-content: center;
   }
+}
+
+.this-system h2::after {
+  content: " *";
+  color: var(--accent);
 }

@@ -140,6 +140,24 @@ defmodule Ascella.Installer.Velopack do
   @impl true
   def rollback(_app, _spec, _ctx), do: {:error, :not_supported}
 
+  # The app's own Update.exe removes it: files, shortcuts, the entry in
+  # Settings > Apps. It deletes %LOCALAPPDATA%\<pack id> whole, which is why
+  # the same check as for an update runs first: a database in there would go
+  # too. The data folders are beside it, not in it. Update.exe cannot delete
+  # itself while it runs, so the folder disappears a moment after it exits;
+  # that moment is waited for.
+  @impl true
+  def uninstall(_app, spec, ctx) do
+    root = root(spec, ctx)
+
+    with :ok <- safe_root(spec, ctx),
+         :ok <- Installer.run(ctx, Path.join(root, "Update.exe"), ["--silent", "uninstall"]) do
+      if Installer.wait_until(fn -> not File.exists?(Path.join(root, "Update.exe")) end, ctx),
+        do: :ok,
+        else: {:error, :not_removed}
+    end
+  end
+
   # --- the install folder ---------------------------------------------------------------
 
   defp root(spec, ctx), do: ctx.local_app_data && Path.join(ctx.local_app_data, spec.pack_id)
