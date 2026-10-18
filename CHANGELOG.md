@@ -19,6 +19,8 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-18
+
 - [Feature] **One page for the hall's programs.** A tile each for OpenPairings, Alnasl, Arkab, Polis and Nunki, with its mark, what is installed, what is out and whether it runs; Install, Update, Start, Stop and Open per program, and Update all, which does them one at a time because a hall has one network and no patience. English and Dutch.
 - [Feature] **The catalogue is data.** `priv/catalogue.json` says which programs there are, where on GitHub they live and what their downloads are called. A program that ships the way Alnasl does is one entry, so adding Polis or Nunki later is a paragraph of JSON, not a release of anything.
 - [Feature] Windows: each program's own Velopack does the installing and updating, macOS gets its `.app` swapped in one rename with the previous one kept for a rollback, and Linux runs the programs' own install and update scripts and their own systemd units. Ascella provides the button and the nagging.
