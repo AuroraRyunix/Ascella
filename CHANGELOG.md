@@ -19,6 +19,8 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-18
+
 - [Fix] **"Keep in Dock" on a Mac now goes through the Dock's own preferences daemon.** The Dock keeps its settings in `cfprefsd`, which caches them and ignores a plist file written behind its back; Ascella wrote the file, so ticking the box often did nothing and unticking it removed nothing. Now: `defaults export com.apple.dock`, edit `persistent-apps` in that copy (a proper file tile with its `file:///Applications/Name.app/` URL; removal deletes every tile pointing at the bundle), `defaults import`, `killall Dock`. Whether the app is in the Dock is read from an export too, so the checkbox shows what the Dock shows instead of what Ascella remembers.
 - [Change] **An app that is open is no longer updated.** The update used to ask it to stop and wait up to a minute, which looks exactly like a hang when the app is mid-round and nobody is answering. Now the tile says "Close X first, then update" at once, before anything is downloaded or swapped, with a Stop button beside the message. Going back to the previous version has the same rule. Nothing is started again afterwards: you closed it, you start it.
 - [Fix] **Nothing Ascella runs can wait for ever.** Every command goes through the runner with a deadline (thirty seconds for the ones that ask a quick question, such as `osascript`, `defaults` or PowerShell; ten minutes for unpacking and installers), and one that is still silent then ends the action with an error the tile shows in words, instead of a spinner that outlives everyone's patience.
