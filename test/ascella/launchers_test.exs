@@ -174,10 +174,12 @@ defmodule Ascella.LaunchersTest do
 
   # --- macOS ------------------------------------------------------------------------
 
-  defp mac(tmp) do
+  defp mac(tmp), do: tmp |> mac_with() |> elem(0)
+
+  defp mac_with(tmp, opts \\ []) do
     ctx = FakeMachine.context(tmp, :macos)
     File.mkdir_p!(hd(ctx.mac_apps))
-    FakeMachine.start(ctx)
+    agent = FakeMachine.start(ctx, opts)
 
     zip =
       FakeGitHub.zip([
@@ -190,63 +192,95 @@ defmodule Ascella.LaunchersTest do
     })
 
     :ok = Installer.install(app("zipapp"), release("1.0.0"), ctx)
-    ctx
+    {ctx, agent}
   end
 
-  test "Mac: Dock means defaults write -array-add, then killall Dock; not twice", %{tmp: tmp} do
-    ctx = mac(tmp)
+  test "Mac: Dock is edited through cfprefsd: export, PlistBuddy on the copy, import, killall; not twice",
+       %{tmp: tmp} do
+    other = "file:///Applications/Other.app/"
+    {ctx, agent} = mac_with(tmp, dock: [other, :spacer])
     bundle = Path.join(hd(ctx.mac_apps), "Zipapp.app")
-    parent = self()
 
-    FakeRunner.script(fn program, args, _opts ->
-      send(parent, {:ran, program, args})
-
-      case {program, args} do
-        {"defaults", ["read" | _]} -> {"(\n)", 0}
-        _other -> {"", 0}
-      end
-    end)
-
-    assert [%{kind: :dock}, %{kind: :login}] = Launchers.options(app("zipapp"), ctx)
+    assert [%{kind: :dock, on?: false}, %{kind: :login}] = Launchers.options(app("zipapp"), ctx)
+    FakeRunner.clear()
     assert :ok = Launchers.add(app("zipapp"), :dock, ctx)
 
-    assert_received {:ran, "defaults",
-                     ["write", "com.apple.dock", "persistent-apps", "-array-add", tile]}
+    calls = FakeRunner.calls()
+    assert {"defaults", ["export", "com.apple.dock", file]} = hd(calls)
 
-    assert tile =~ file_url(bundle)
-    assert tile =~ "file-tile"
-    assert_received {:ran, "killall", ["Dock"]}
+    pb = "/usr/libexec/PlistBuddy"
+    add_at = Enum.find_index(calls, &match?({^pb, ["-c", "Add :persistent-apps:2 dict" | _]}, &1))
 
-    # Already in the Dock (put there by hand): left alone, nothing written.
-    FakeRunner.script(fn program, args, _opts ->
-      send(parent, {:ran2, program, args})
-      if program == "defaults", do: {file_url(bundle), 0}, else: {"", 0}
-    end)
+    import_at =
+      Enum.find_index(calls, &match?({"defaults", ["import", "com.apple.dock", ^file]}, &1))
 
-    assert {:error, :already_there} =
-             Launchers.add(app("zipapp"), :login, ctx)
-             |> then(fn _ -> Launchers.add(app("zipapp"), :dock, ctx) end)
+    assert add_at && import_at && add_at < import_at
+    # The array has a spacer in it: it is skipped over, not taken for the end.
+    assert {pb, ["-c", "Print :persistent-apps:2", file]} in calls
+    assert List.last(calls) == {"killall", ["Dock"]}
+    {^pb, add} = Enum.at(calls, add_at)
 
-    refute_received {:ran2, "defaults", ["write" | _]}
+    assert add == [
+             "-c",
+             "Add :persistent-apps:2 dict",
+             "-c",
+             "Add :persistent-apps:2:tile-type string file-tile",
+             "-c",
+             "Add :persistent-apps:2:tile-data dict",
+             "-c",
+             "Add :persistent-apps:2:tile-data:file-data dict",
+             "-c",
+             "Add :persistent-apps:2:tile-data:file-data:_CFURLString string #{file_url(bundle)}",
+             "-c",
+             "Add :persistent-apps:2:tile-data:file-data:_CFURLStringType integer 15",
+             file
+           ]
+
+    assert FakeMachine.dock(agent) == [other, :spacer, file_url(bundle)]
+    refute File.exists?(file)
+
+    # The checkbox reads the Dock itself.
+    assert [%{kind: :dock, on?: true}, _login] = Launchers.options(app("zipapp"), ctx)
+
+    # A second click: already there, and nothing is imported.
+    FakeRunner.clear()
+    assert {:error, :already_there} = Launchers.add(app("zipapp"), :dock, ctx)
+    refute Enum.any?(FakeRunner.calls(), &match?({"defaults", ["import" | _]}, &1))
   end
 
-  test "Mac: removing the Dock tile and the login item uses the recorded bundle", %{tmp: tmp} do
-    ctx = mac(tmp)
+  test "Mac: a tile put there by hand is left alone, and not added twice", %{tmp: tmp} do
+    {ctx, agent} = mac_with(tmp)
     bundle = Path.join(hd(ctx.mac_apps), "Zipapp.app")
-    parent = self()
+    Agent.update(agent, &%{&1 | dock: [file_url(bundle)]})
 
-    FakeRunner.script(fn program, args, _opts ->
-      send(parent, {:ran, program, args})
-      if program == "defaults", do: {"", 0}, else: {"", 0}
-    end)
+    assert {:error, :already_there} = Launchers.add(app("zipapp"), :dock, ctx)
+    assert FakeMachine.dock(agent) == [file_url(bundle)]
+  end
 
+  test "Mac: unticking deletes every tile that points at the bundle, through the export",
+       %{tmp: tmp} do
+    other = "file:///Applications/Other.app/"
+    {ctx, agent} = mac_with(tmp)
+    bundle = Path.join(hd(ctx.mac_apps), "Zipapp.app")
     :ok = Launchers.add(app("zipapp"), :dock, ctx)
     :ok = Launchers.add(app("zipapp"), :login, ctx)
+    # Twice in the Dock, once with the bare path, with another app between.
+    Agent.update(agent, &%{&1 | dock: [file_url(bundle), other, file_url(bundle)]})
+
     assert :ok = Launchers.remove_all(app("zipapp"), ctx)
 
-    assert_received {:ran, "sh", ["-c", script, "sh", "file://" <> _ = url]}
-    assert script =~ "PlistBuddy"
-    assert url == file_url(bundle)
+    assert FakeMachine.dock(agent) == [other]
+
+    deletes =
+      for {p, args} <- FakeRunner.calls(),
+          p =~ "PlistBuddy",
+          "Delete :persistent-apps:2" in args,
+          do: args
+
+    assert [["-c", "Delete :persistent-apps:2", "-c", "Delete :persistent-apps:0", _file]] =
+             deletes
+
+    assert {"killall", ["Dock"]} in FakeRunner.calls()
 
     assert Enum.any?(FakeRunner.calls(), fn
              {"osascript", args} ->
@@ -257,6 +291,26 @@ defmodule Ascella.LaunchersTest do
            end)
 
     assert Launchers.recorded(app("zipapp"), ctx) == []
+  end
+
+  test "Mac: unticking when the Dock does not have it touches nothing", %{tmp: tmp} do
+    {ctx, agent} = mac_with(tmp)
+    :ok = Launchers.add(app("zipapp"), :dock, ctx)
+    # Taken out by hand since.
+    Agent.update(agent, &%{&1 | dock: ["file:///Applications/Other.app/"]})
+    FakeRunner.clear()
+
+    assert :ok = Launchers.remove(app("zipapp"), :dock, ctx)
+    refute Enum.any?(FakeRunner.calls(), &match?({"defaults", ["import" | _]}, &1))
+    refute {"killall", ["Dock"]} in FakeRunner.calls()
+  end
+
+  test "Mac: dock_bundles reads only persistent-apps" do
+    xml =
+      "<dict><key>persistent-apps</key><array><dict><key>_CFURLString</key><string>file:///Applications/My%20App.app/</string></dict></array>" <>
+        "<key>recent-apps</key><array><dict><key>_CFURLString</key><string>file:///Applications/Recent.app/</string></dict></array></dict>"
+
+    assert Ascella.Launchers.MacOS.dock_bundles(xml) == ["/Applications/My App.app"]
   end
 
   test "Mac: uninstall puts the bundle in the Trash through Finder and drops the Dock tile", %{

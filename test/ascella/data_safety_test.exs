@@ -83,12 +83,24 @@ defmodule Ascella.DataSafetyTest do
     assert FakeMachine.running?(machine, "Zipapp.app")
 
     FakeGitHub.serve(%{"Example/Zipapp" => mac_release("1.1.0")})
+
+    # Open: refused at once, nothing downloaded, swapped or stopped.
+    assert {:error, {:running, "Zipapp"}} =
+             Installer.install(app("zipapp"), release("1.1.0"), ctx)
+
+    assert {:error, {:running, "Zipapp"}} = Installer.rollback(app("zipapp"), ctx)
+    assert %{version: "1.0.0", previous: nil} = Installer.installed(app("zipapp"), ctx)
+    refute {"kill", ["-TERM", "4242"]} in FakeRunner.calls()
+
+    # Stopped with SIGTERM to the launcher, by the Stop button.
+    assert :ok = Installer.stop(app("zipapp"), ctx)
+    assert {"kill", ["-TERM", "4242"]} in FakeRunner.calls()
+    refute FakeMachine.running?(machine, "Zipapp.app")
+
     assert :ok = Installer.install(app("zipapp"), release("1.1.0"), ctx)
     assert %{version: "1.1.0", previous: "1.0.0"} = Installer.installed(app("zipapp"), ctx)
-
-    # Stopped with SIGTERM to the launcher, and started again afterwards.
-    assert {"kill", ["-TERM", "4242"]} in FakeRunner.calls()
-    assert FakeMachine.running?(machine, "Zipapp.app")
+    # Nobody starts it again: it was closed on purpose.
+    refute FakeMachine.running?(machine, "Zipapp.app")
     refute Enum.any?(FakeRunner.calls(), fn {p, args} -> p == "kill" and "-9" in args end)
 
     assert :ok = Installer.rollback(app("zipapp"), ctx)
@@ -97,7 +109,9 @@ defmodule Ascella.DataSafetyTest do
     assert_data_untouched(ctx, before)
   end
 
-  test "Mac: an app that will not stop is left exactly as it was", %{tmp: tmp} do
+  test "Mac: an open app is refused, and one that will not stop times out with an error", %{
+    tmp: tmp
+  } do
     ctx = FakeMachine.context(tmp, :macos)
     File.mkdir_p!(hd(ctx.mac_apps))
     before = fill_data(ctx)
@@ -108,7 +122,15 @@ defmodule Ascella.DataSafetyTest do
 
     FakeMachine.start(ctx, running: ["Zipapp.app"], stubborn: true)
     FakeGitHub.serve(%{"Example/Zipapp" => mac_release("1.1.0")})
-    assert {:error, :did_not_stop} = Installer.install(app("zipapp"), release("1.1.0"), ctx)
+
+    assert {:error, {:running, "Zipapp"}} =
+             Installer.install(app("zipapp"), release("1.1.0"), ctx)
+
+    # The Stop button on an app that never closes: an error after the
+    # context's stop timeout, not a wait without end.
+    started = System.monotonic_time(:millisecond)
+    assert {:error, :did_not_stop} = Installer.stop(app("zipapp"), ctx)
+    assert System.monotonic_time(:millisecond) - started < 5_000
     assert %{version: "1.0.0", previous: nil} = Installer.installed(app("zipapp"), ctx)
 
     assert_data_untouched(ctx, before)
@@ -132,6 +154,35 @@ defmodule Ascella.DataSafetyTest do
     assert Map.keys(snapshot(ctx)) == Map.keys(before)
   end
 
+  test "an app with rollback off is refused before anything is looked at", %{tmp: tmp} do
+    ctx = FakeMachine.context(tmp, :macos)
+    FakeMachine.start(ctx)
+    app = %{app("zipapp") | rollback: false}
+
+    assert {:error, :no_rollback} = Installer.rollback(app, ctx)
+    assert FakeRunner.calls() == []
+  end
+
+  test "a command that outlives its deadline ends as a timeout error, not a wait", %{tmp: tmp} do
+    ctx = FakeMachine.context(tmp, :macos)
+    FakeRunner.script(fn _program, _args, _opts -> {"no answer", 124} end)
+
+    assert {:error, {:timeout, "osascript"}} = Installer.run(ctx, "osascript", ["-e", "x"])
+  end
+
+  test "the real runner gives up on a program that does not finish" do
+    case System.find_executable("sleep") do
+      nil ->
+        :ok
+
+      sleep ->
+        started = System.monotonic_time(:millisecond)
+        assert {message, 124} = Ascella.Runner.System.cmd(sleep, ["30"], timeout: 200)
+        assert message =~ "no answer"
+        assert System.monotonic_time(:millisecond) - started < 5_000
+    end
+  end
+
   # --- Windows ----------------------------------------------------------------------
 
   test "Windows: Setup.exe, then Update.exe apply, the data never moved", %{tmp: tmp} do
@@ -153,6 +204,10 @@ defmodule Ascella.DataSafetyTest do
       "Example/Zipapp" => %{version: "1.1.0", files: %{"ZipappApp-1.1.0-full.nupkg" => "pkg"}}
     })
 
+    assert {:error, {:running, "Zipapp"}} =
+             Installer.install(app("zipapp"), release("1.1.0"), ctx)
+
+    assert :ok = Installer.stop(app("zipapp"), ctx)
     assert :ok = Installer.install(app("zipapp"), release("1.1.0"), ctx)
     assert %{version: "1.1.0"} = Installer.installed(app("zipapp"), ctx)
 
@@ -162,7 +217,7 @@ defmodule Ascella.DataSafetyTest do
            end)
 
     refute Enum.any?(FakeRunner.calls(), fn {p, args} -> p == "taskkill" and "/F" in args end)
-    assert FakeMachine.running?(machine, "Zipapp.exe")
+    refute FakeMachine.running?(machine, "Zipapp.exe")
 
     assert_data_untouched(ctx, before)
   end
@@ -238,6 +293,11 @@ defmodule Ascella.DataSafetyTest do
     assert FakeMachine.running?(machine, "hallapp.service")
 
     FakeGitHub.serve(%{"Example/Hallapp" => linux_release("1.1.0")})
+
+    assert {:error, {:running, "Hallapp"}} =
+             Installer.install(app("hallapp"), release("1.1.0"), ctx)
+
+    assert :ok = Installer.stop(app("hallapp"), ctx)
     assert :ok = Installer.install(app("hallapp"), release("1.1.0"), ctx)
     assert %{version: "1.1.0", previous: "1.0.0"} = Installer.installed(app("hallapp"), ctx)
     assert Enum.any?(FakeRunner.calls(), &match?({"sudo", ["-n", "sh", _, "--from", _]}, &1))
@@ -270,14 +330,25 @@ defmodule Ascella.DataSafetyTest do
     for version <- ["1.0.0", "1.1.0", "1.2.0"] do
       FakeGitHub.serve(%{"Example/Zipapp" => portable_release(version)})
       assert :ok = Installer.install(app("zipapp"), release(version), ctx)
-      if version == "1.0.0", do: assert(:ok = Installer.start(app("zipapp"), ctx))
+
+      if version == "1.0.0" do
+        assert :ok = Installer.start(app("zipapp"), ctx)
+
+        # Open: the next version waits until it is closed.
+        FakeGitHub.serve(%{"Example/Zipapp" => portable_release("1.1.0")})
+
+        assert {:error, {:running, "Zipapp"}} =
+                 Installer.install(app("zipapp"), release("1.1.0"), ctx)
+
+        assert :ok = Installer.stop(app("zipapp"), ctx)
+      end
     end
 
     assert %{version: "1.2.0", previous: "1.1.0"} = Installer.installed(app("zipapp"), ctx)
     base = Path.join(ctx.programs, "zipapp")
     refute File.exists?(Path.join(base, "1.0.0"))
     assert {"kill", ["-TERM", "4243"]} in FakeRunner.calls()
-    assert FakeMachine.running?(machine, "zipapp.sh")
+    refute FakeMachine.running?(machine, "zipapp.sh")
 
     assert :ok = Installer.rollback(app("zipapp"), ctx)
     assert %{version: "1.1.0", previous: "1.2.0"} = Installer.installed(app("zipapp"), ctx)

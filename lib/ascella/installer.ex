@@ -67,8 +67,11 @@ defmodule Ascella.Installer do
   end
 
   @doc """
-  Installs `release` (`%{version, tag}`), or updates to it. Starts the app
-  again afterwards when it was running before.
+  Installs `release` (`%{version, tag}`), or updates to it. An app that is
+  running is not touched: `{:error, {:running, name}}` at once, before
+  anything is downloaded or swapped. Closing it is a person's decision (it
+  may be mid-round), and the page offers the Stop button beside the message.
+  Nothing is started again afterwards for the same reason: it was closed.
   """
   def install(app, release, ctx) do
     case __MODULE__.for(app, ctx) do
@@ -76,15 +79,12 @@ defmodule Ascella.Installer do
         {:error, :no_build}
 
       {mod, spec} ->
-        was_running? = mod.running?(app, spec, ctx)
-
-        with :ok <- mod.install(app, spec, release, ctx) do
-          if was_running? and not mod.running?(app, spec, ctx),
-            do: mod.start(app, spec, ctx),
-            else: :ok
-        end
+        with :ok <- closed(mod, app, spec, ctx), do: mod.install(app, spec, release, ctx)
     end
   end
+
+  defp closed(mod, app, spec, ctx),
+    do: if(mod.running?(app, spec, ctx), do: {:error, {:running, app.name}}, else: :ok)
 
   @doc """
   Removes `app`: stops it, takes the program away the platform's way, and
@@ -144,7 +144,20 @@ defmodule Ascella.Installer do
 
   def start(app, ctx), do: call(app, ctx, :start)
   def stop(app, ctx), do: with_mod(app, ctx, &stop_gracefully(&1, app, &2, ctx))
-  def rollback(app, ctx), do: call(app, ctx, :rollback)
+
+  @doc """
+  Back to the previous version. Refused for an app whose catalogue entry says
+  `"rollback": false` (its database moves forward on an update, and an older
+  program over a newer database is how tournaments get damaged), and for one
+  that is running.
+  """
+  def rollback(%{rollback: false}, _ctx), do: {:error, :no_rollback}
+
+  def rollback(app, ctx) do
+    with_mod(app, ctx, fn mod, spec ->
+      with :ok <- closed(mod, app, spec, ctx), do: mod.rollback(app, spec, ctx)
+    end)
+  end
 
   defp call(app, ctx, fun), do: with_mod(app, ctx, &apply(&1, fun, [app, &2, ctx]))
 
@@ -207,6 +220,9 @@ defmodule Ascella.Installer do
     case Runner.run(ctx, program, args, opts) do
       {_output, 0} ->
         :ok
+
+      {_output, 124} ->
+        {:error, {:timeout, Path.basename(program)}}
 
       {output, status} ->
         {:error, {:exit, Path.basename(program), status, String.slice(output, -400, 400)}}

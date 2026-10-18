@@ -14,6 +14,9 @@ defmodule Ascella.Catalogue do
         "mark": "polis.svg",              a file in priv/marks
         "accent": ["#1f4f8a", "#8fb8ec"], the mark's accent, day and night
         "port": 4040,                     where its site answers (or null)
+        "rollback": false,                optional, default true: false for an app
+                                          whose database migrates forward on an
+                                          update, so there is no way back
         "blurb": {"en": "...", "nl": "..."},
         "platforms": { "<target>": { "method": ..., ... } },
         "data": { "windows": [...], "macos": [...], "linux": [...] }
@@ -148,6 +151,7 @@ defmodule Ascella.Catalogue do
       mark: mark!(id, entry["mark"]),
       accent: accent!(id, entry["accent"]),
       port: port!(id, entry["port"]),
+      rollback: rollback!(id, Map.get(entry, "rollback", true)),
       blurb: Map.new(entry["blurb"] || %{}, fn {k, v} -> {to_string(k), to_string(v)} end),
       platforms: platforms,
       data: data
@@ -261,6 +265,9 @@ defmodule Ascella.Catalogue do
 
   defp accent!(_id, nil), do: ["#b3261e", "#f28b82"]
   defp accent!(id, _other), do: fail!("#{id}: accent is [day, night]")
+
+  defp rollback!(_id, flag) when is_boolean(flag), do: flag
+  defp rollback!(id, other), do: fail!("#{id}: rollback is true or false, not #{inspect(other)}")
 
   defp port!(_id, nil), do: nil
   defp port!(_id, port) when is_integer(port) and port in 1..65_535, do: port

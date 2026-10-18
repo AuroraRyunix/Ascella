@@ -274,7 +274,25 @@ defmodule AscellaWeb.HomeLive do
           </p>
 
           <p :if={tile.error} class="problem" id={"error-#{tile.app.id}"}>
-            {Words.error(tile.error)}
+            {Words.error(tile.error, tile.app)}
+            <button
+              :if={running_error?(tile.error) and tile.running? and !tile.busy}
+              id={"error-stop-#{tile.app.id}"}
+              class="btn"
+              phx-click="act"
+              phx-value-id={tile.app.id}
+              phx-value-action="stop"
+            >
+              {gettext("Stop")}
+            </button>
+          </p>
+
+          <p
+            :if={tile.state == :installed and not tile.rollback?}
+            class="note"
+            id={"no-rollback-#{tile.app.id}"}
+          >
+            {gettext("There is no way back to an older version: updating changes its database.")}
           </p>
 
           <div
@@ -491,7 +509,7 @@ defmodule AscellaWeb.HomeLive do
               </button>
 
               <button
-                :if={tile.previous}
+                :if={tile.previous && tile.rollback?}
                 id={"rollback-#{tile.app.id}"}
                 class="btn btn-quiet"
                 phx-click="act"
@@ -508,6 +526,9 @@ defmodule AscellaWeb.HomeLive do
     </Layouts.app>
     """
   end
+
+  defp running_error?({_action, {:running, _name}}), do: true
+  defp running_error?(_other), do: false
 
   attr :file, :string, required: true
 

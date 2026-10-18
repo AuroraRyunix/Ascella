@@ -8,6 +8,7 @@
       "mark": "openpairings.svg",
       "accent": ["#24503a", "#7fbf9c"],
       "port": 4000,
+      "rollback": false,
       "blurb": {
         "en": "The tournament manager: players, pairings, results.",
         "nl": "Het toernooiprogramma: spelers, paringen, uitslagen."
@@ -53,6 +54,7 @@
       "mark": "alnasl.svg",
       "accent": ["#7a2e1e", "#e2a08c"],
       "port": 4040,
+      "rollback": false,
       "blurb": {
         "en": "Live boards: reads the boards and shows the games.",
         "nl": "Live borden: leest de borden en toont de partijen."

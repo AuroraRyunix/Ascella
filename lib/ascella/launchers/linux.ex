@@ -57,8 +57,8 @@ defmodule Ascella.Launchers.Linux do
   def delete(_kind, _app, _record, _ctx), do: :ok
 
   @impl true
-  def exists?(:favourites, _record), do: true
-  def exists?(_kind, %{"path" => path}), do: File.exists?(path)
+  def exists?(:favourites, _record, _ctx), do: true
+  def exists?(_kind, %{"path" => path}, _ctx), do: File.exists?(path)
 
   def desktop_id(app), do: "ascella-#{app.id}.desktop"
 

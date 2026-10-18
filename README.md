@@ -14,11 +14,18 @@ Named after zeta Sagittarii, which was there first.
 
 ## What it does, per system
 
-Every action keeps to the same order: download and verify first, while the
-program still runs; unpack and check beside the running copy; stop the
-program politely and wait; swap; start it again if it was running. When the
-program does not stop, nothing is changed and the tile says so. Ascella
-never kills anything.
+Every action keeps to the same order: refuse if the program is open ("Close X
+first, then update", with a Stop button beside the message: it may be in the
+middle of a round); download and verify; unpack and check beside the
+program; swap. Nothing waits for ever: every command Ascella runs has a
+deadline (`Ascella.Runner`), and a program that does not answer in time ends
+the action with an error the tile shows in words. Ascella never kills
+anything.
+
+A catalogue entry with `"rollback": false` has no way back, and the button and
+the function both refuse. That is OpenPairings and Alnasl: their databases
+migrate forward on an update, and an older program over a newer database is
+how tournaments get damaged.
 
 | | install / update | stop | rollback |
 |---|---|---|---|
@@ -32,12 +39,21 @@ Ascella's launcher holds what it starts in a job object that dies with it,
 and OpenPairings closing in round five because someone closed Ascella would
 be a poor advertisement.
 
+On Linux and macOS a program is started from an empty environment (`env -i`,
+with only what Finder or a desktop session would give it: home, user, locale,
+a system `PATH` and the display). Ascella's own `PORT` and friends are not
+theirs, and an Arkab that reads a `PORT` it did not mean to inherit will
+conclude that the port is taken by something else.
+
 ## Shortcuts and removal
 
-Once a program is installed its tile offers to make it easy to start: a Start
-menu and Desktop shortcut on Windows, the Dock and login items on a Mac, a
-menu entry, Desktop file and GNOME favourite on Linux (`Ascella.Launchers`,
-one adapter per system). What Ascella makes is recorded in `launchers.json` in
+Right after an install the tile asks whether to make the program easy to
+start, and every installed tile has a Shortcuts list: a Start menu and Desktop
+shortcut on Windows (to pin to the taskbar, right-click the shortcut), the Dock
+(edited through `defaults export` / PlistBuddy / `defaults import`, because the
+Dock's preferences live in a daemon that ignores a plist written behind its
+back, and read back the same way) and login items on a Mac, a menu entry, Desktop file and GNOME favourite on
+Linux (`Ascella.Launchers`, one adapter per system). What Ascella makes is recorded in `launchers.json` in
 its own folder, and only that is ever removed. They point at paths that an
 update does not move. Remove on a tile stops the program and removes it the
 system's way (Velopack's `Update.exe`, the Bin, the app's `uninstall.sh`),
@@ -110,7 +126,10 @@ Like Alnasl: a Velopack installer and a portable zip on Windows, a zipped
 `.app` on macOS 11 and newer (Apple Silicon), and `install.sh` with a systemd
 unit on Linux. On a Mac the first install is one manual step, because the
 app is not notarised: see [docs/macos.md](docs/macos.md). After that,
-nothing Ascella downloads is quarantined. Releasing: [docs/releasing.md](docs/releasing.md).
+nothing Ascella downloads is quarantined. Removing Ascella itself has its own
+page, `/remove-ascella` (linked from the help), with the exact steps per
+system, because a program that uninstalls itself while it runs has opinions
+about the order. Releasing: [docs/releasing.md](docs/releasing.md).
 
 ## Developing
 
