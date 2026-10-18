@@ -32,12 +32,19 @@ Ascella's launcher holds what it starts in a job object that dies with it,
 and OpenPairings closing in round five because someone closed Ascella would
 be a poor advertisement.
 
+On Linux and macOS a program is started from an empty environment (`env -i`,
+with only what Finder or a desktop session would give it: home, user, locale,
+a system `PATH` and the display). Ascella's own `PORT` and friends are not
+theirs, and an Arkab that reads a `PORT` it did not mean to inherit will
+conclude that the port is taken by something else.
+
 ## Shortcuts and removal
 
-Once a program is installed its tile offers to make it easy to start: a Start
-menu and Desktop shortcut on Windows, the Dock and login items on a Mac, a
-menu entry, Desktop file and GNOME favourite on Linux (`Ascella.Launchers`,
-one adapter per system). What Ascella makes is recorded in `launchers.json` in
+Right after an install the tile asks whether to make the program easy to
+start, and every installed tile has a Shortcuts list: a Start menu and Desktop
+shortcut on Windows (to pin to the taskbar, right-click the shortcut), the Dock
+and login items on a Mac, a menu entry, Desktop file and GNOME favourite on
+Linux (`Ascella.Launchers`, one adapter per system). What Ascella makes is recorded in `launchers.json` in
 its own folder, and only that is ever removed. They point at paths that an
 update does not move. Remove on a tile stops the program and removes it the
 system's way (Velopack's `Update.exe`, the Bin, the app's `uninstall.sh`),
@@ -110,7 +117,10 @@ Like Alnasl: a Velopack installer and a portable zip on Windows, a zipped
 `.app` on macOS 11 and newer (Apple Silicon), and `install.sh` with a systemd
 unit on Linux. On a Mac the first install is one manual step, because the
 app is not notarised: see [docs/macos.md](docs/macos.md). After that,
-nothing Ascella downloads is quarantined. Releasing: [docs/releasing.md](docs/releasing.md).
+nothing Ascella downloads is quarantined. Removing Ascella itself has its own
+page, `/remove-ascella` (linked from the help), with the exact steps per
+system, because a program that uninstalls itself while it runs has opinions
+about the order. Releasing: [docs/releasing.md](docs/releasing.md).
 
 ## Developing
 
