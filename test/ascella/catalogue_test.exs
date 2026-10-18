@@ -18,6 +18,25 @@ defmodule Ascella.CatalogueTest do
 
   defp parse(entries), do: Catalogue.parse!(%{"apps" => entries})
 
+  test "rollback is off for the apps whose database migrates forward, and on for the rest" do
+    apps = Catalogue.load!(Application.app_dir(:ascella, "priv/catalogue.json"))
+
+    assert Map.new(apps, &{&1.id, &1.rollback}) == %{
+             "openpairings" => false,
+             "alnasl" => false,
+             "arkab" => true,
+             "polis" => true,
+             "nunki" => true
+           }
+
+    assert [%{rollback: true}] = parse([entry(%{})])
+    assert [%{rollback: false}] = parse([entry(%{"rollback" => false})])
+
+    assert_raise ArgumentError, ~r/rollback is true or false/, fn ->
+      parse([entry(%{"rollback" => "no"})])
+    end
+  end
+
   test "the shipped catalogue loads, with a mark on disk for every app" do
     apps = Catalogue.load!(Application.app_dir(:ascella, "priv/catalogue.json"))
     assert Enum.map(apps, & &1.id) == ~w(openpairings alnasl arkab polis nunki)

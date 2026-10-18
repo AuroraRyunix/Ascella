@@ -9,7 +9,15 @@ defmodule Ascella.FakeMachine do
 
   `stubborn: true` makes every polite stop ignored, for the tests about
   apps that will not stop.
+
+  The Dock is a list of tiles (`dock: ["file:///Applications/X.app/", :spacer]`)
+  held the way cfprefsd holds it: `defaults export` copies it into a working
+  copy, PlistBuddy edits the copy, `defaults import` commits it. `dock/1`
+  reads what the Dock holds now.
   """
+
+  @doc "The Dock's tiles now: URLs, and `:spacer` for a tile without a file."
+  def dock(agent), do: Agent.get(agent, & &1.dock)
 
   alias Ascella.{Context, FakeRunner}
 
@@ -55,7 +63,9 @@ defmodule Ascella.FakeMachine do
       Agent.start_link(fn ->
         %{
           running: MapSet.new(Keyword.get(opts, :running, [])),
-          stubborn: Keyword.get(opts, :stubborn, false)
+          stubborn: Keyword.get(opts, :stubborn, false),
+          dock: Keyword.get(opts, :dock, []),
+          work: []
         }
       end)
 
@@ -84,8 +94,43 @@ defmodule Ascella.FakeMachine do
     handle(agent, ctx, Path.basename(command), command, args, opts)
   end
 
-  defp handle(_agent, _ctx, name, _p, _args, _opts) when name in ["defaults", "killall"],
-    do: {"", 0}
+  defp handle(_agent, _ctx, "killall", _p, _args, _opts), do: {"", 0}
+
+  defp handle(agent, _ctx, "defaults", _p, ["export", "com.apple.dock", "-"], _opts) do
+    tiles =
+      for url <- Agent.get(agent, & &1.dock), is_binary(url), into: "" do
+        "<dict><key>tile-data</key><dict><key>file-data</key><dict>" <>
+          "<key>_CFURLString</key><string>#{url}</string>" <>
+          "<key>_CFURLStringType</key><integer>15</integer></dict></dict></dict>"
+      end
+
+    {"<plist><dict><key>persistent-apps</key><array>#{tiles}</array>" <>
+       "<key>recent-apps</key><array><dict><key>_CFURLString</key><string>file:///recent.app/</string></dict></array>" <>
+       "</dict></plist>", 0}
+  end
+
+  defp handle(agent, _ctx, "defaults", _p, ["export", "com.apple.dock", _file], _opts) do
+    Agent.update(agent, &%{&1 | work: &1.dock})
+    {"", 0}
+  end
+
+  defp handle(agent, _ctx, "defaults", _p, ["import", "com.apple.dock", _file], _opts) do
+    Agent.update(agent, &%{&1 | dock: &1.work})
+    {"", 0}
+  end
+
+  defp handle(agent, _ctx, "PlistBuddy", _p, args, _opts) do
+    commands = for ["-c", command] <- Enum.chunk_every(args, 2, 2, :discard), do: command
+
+    Enum.reduce_while(commands, {"", 0}, fn command, _ok ->
+      case dock_command(agent, command) do
+        {_out, 0} = ok -> {:cont, ok}
+        failed -> {:halt, failed}
+      end
+    end)
+  end
+
+  defp handle(_agent, _ctx, "defaults", _p, _args, _opts), do: {"", 0}
 
   # --- macOS ------------------------------------------------------------------------
 
@@ -297,6 +342,50 @@ defmodule Ascella.FakeMachine do
   defp handle(_agent, _ctx, name, _program, args, _opts) do
     {"fake machine: no idea what #{name} #{Enum.join(args, " ")} does", 99}
   end
+
+  # PlistBuddy on the Dock's working copy: only the commands Ascella sends.
+  defp dock_command(agent, command) do
+    work = Agent.get(agent, & &1.work)
+
+    case String.split(command, " ", parts: 4) do
+      ["Print", ":persistent-apps"] ->
+        {"Array {
+}
+", 0}
+
+      ["Print", ":persistent-apps:" <> path] ->
+        case String.split(path, ":") do
+          [index] ->
+            if tile(work, index),
+              do: {"Dict {
+}
+", 0},
+              else: {"does not exist", 1}
+
+          [index, "tile-data", "file-data", "_CFURLString"] ->
+            case tile(work, index) do
+              url when is_binary(url) -> {url <> "
+", 0}
+              _none -> {"does not exist", 1}
+            end
+        end
+
+      ["Delete", ":persistent-apps:" <> index] ->
+        Agent.update(agent, &%{&1 | work: List.delete_at(&1.work, String.to_integer(index))})
+        {"", 0}
+
+      ["Add", ":persistent-apps:" <> path, "string", url] ->
+        if String.ends_with?(path, "_CFURLString"),
+          do: Agent.update(agent, &%{&1 | work: &1.work ++ [url]})
+
+        {"", 0}
+
+      ["Add", _path, _type | _value] ->
+        {"", 0}
+    end
+  end
+
+  defp tile(work, index), do: Enum.at(work, String.to_integer(index))
 
   defp pad([whole, a]), do: [whole, a, nil]
   defp pad(list), do: list

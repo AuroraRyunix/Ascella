@@ -27,6 +27,10 @@ defmodule AscellaWeb.Words do
 
   def error({_action, reason}), do: reason(reason)
 
+  @doc "Like `error/1`, with the app at hand for the sentences that name it."
+  def error({_action, {:running, _name}}, %{name: name}), do: reason({:running, name})
+  def error(error, _app), do: error(error)
+
   def reason(:no_release), do: gettext("No release is known yet. Check for updates first.")
 
   def reason(:no_checksums),
@@ -47,6 +51,22 @@ defmodule AscellaWeb.Words do
     do: gettext("GitHub answered %{status}. Nothing was changed.", status: status)
 
   def reason(:not_found), do: gettext("The release has no file for this computer.")
+
+  def reason({:running, name}),
+    do: gettext("%{name} is open. Close %{name} first, then update.", name: name)
+
+  def reason({:timeout, program}),
+    do:
+      gettext(
+        "%{program} did not answer in time, so Ascella gave up waiting. Nothing was changed after that point; try again.",
+        program: program
+      )
+
+  def reason(:no_rollback),
+    do:
+      gettext(
+        "There is no way back for this program: updating changes its database, and an older version cannot read that."
+      )
 
   def reason(:did_not_stop),
     do:

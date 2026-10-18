@@ -30,8 +30,8 @@ defmodule Ascella.Launchers.Adapter do
   @doc "Undoes what a file delete cannot (Dock, login items, favourites)."
   @callback delete(kind, App.t(), launcher_record, Context.t()) :: :ok | {:error, term}
 
-  @doc "Is it still there? Cheap: no commands."
-  @callback exists?(kind, launcher_record) :: boolean
+  @doc "Is it still there? Files are looked at; a Dock is asked, through the context's runner."
+  @callback exists?(kind, launcher_record, Context.t()) :: boolean
 
   @doc "Kinds that are files pointing at the executable, and are made again after an update."
   @callback refreshable() :: [kind]

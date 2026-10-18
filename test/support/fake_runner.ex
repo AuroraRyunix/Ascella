@@ -20,6 +20,9 @@ defmodule Ascella.FakeRunner do
     :persistent_term.put({__MODULE__, :calls}, [])
   end
 
+  @doc "Forgets the calls so far, keeps the script: for asserting on one action alone."
+  def clear, do: :persistent_term.put({__MODULE__, :calls}, [])
+
   @doc "Every call so far, oldest first: `{program, args}`."
   def calls, do: Enum.reverse(:persistent_term.get({__MODULE__, :calls}, []))
 

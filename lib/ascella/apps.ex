@@ -209,6 +209,7 @@ defmodule Ascella.Apps do
       state: status.state,
       version: status.version,
       previous: status.previous,
+      rollback?: app.rollback,
       latest: latest_version,
       latest_error: match?({:error, _}, latest) && elem(latest, 1),
       running?: Map.get(state.running, app.id, false),

@@ -18,8 +18,8 @@ msgstr "%{program} stopte met code %{status}."
 
 #: lib/ascella_web/controllers/help_html/show.html.heex:32
 #, elixir-autogen, elixir-format
-msgid "A program that is running is stopped first, the way it stops itself, and started again afterwards. If it does not stop within a minute, nothing is changed and the tile says so. On a Mac the previous version is kept, and the tile offers to go back to it."
-msgstr "Een programma dat draait wordt eerst gestopt, zoals het zichzelf stopt, en daarna weer gestart. Stopt het niet binnen een minuut, dan verandert er niets en zegt de tegel dat. Op een Mac blijft de vorige versie bewaard, en biedt de tegel aan om terug te gaan."
+msgid "A program that is open is not updated: Ascella says so and offers to close it, because it may be in the middle of a round. Once it is closed, the update replaces the program and nothing else. If a program does not answer in time, Ascella gives up waiting, changes nothing more, and the tile says so. On a Mac the previous version is kept and the tile offers to go back to it, except for programs whose database changes on an update (OpenPairings and Alnasl): there is no way back for those."
+msgstr "Een programma dat openstaat wordt niet bijgewerkt: Ascella zegt dat en biedt aan het te sluiten, want het kan midden in een ronde zitten. Is het gesloten, dan vervangt de update het programma en niets anders. Antwoordt een programma niet op tijd, dan geeft Ascella het wachten op, verandert niets meer en zegt de tegel dat. Op een Mac blijft de vorige versie bewaard en biedt de tegel aan ernaar terug te gaan, behalve bij programma's waarvan de database bij een update verandert (OpenPairings en Alnasl): daar is geen weg terug."
 
 #: lib/ascella_web/components/core_components.ex:364
 #, elixir-autogen, elixir-format
@@ -625,3 +625,23 @@ msgstr "Ja, zet het in het Startmenu"
 #, elixir-autogen, elixir-format
 msgid "Yes, put it in the applications menu"
 msgstr "Ja, zet het in het programmamenu"
+
+#: lib/ascella_web/words.ex:1
+#, elixir-autogen, elixir-format
+msgid "%{name} is open. Close %{name} first, then update."
+msgstr "%{name} staat open. Sluit %{name} eerst, en werk daarna bij."
+
+#: lib/ascella_web/words.ex:1
+#, elixir-autogen, elixir-format
+msgid "%{program} did not answer in time, so Ascella gave up waiting. Nothing was changed after that point; try again."
+msgstr "%{program} antwoordde niet op tijd, dus Ascella geeft het wachten op. Daarna is niets meer veranderd; probeer het opnieuw."
+
+#: lib/ascella_web/words.ex:1
+#, elixir-autogen, elixir-format
+msgid "There is no way back for this program: updating changes its database, and an older version cannot read that."
+msgstr "Voor dit programma is geen weg terug: een update verandert zijn database, en een oudere versie kan die niet lezen."
+
+#: lib/ascella_web/live/home_live.ex:1
+#, elixir-autogen, elixir-format
+msgid "There is no way back to an older version: updating changes its database."
+msgstr "Er is geen weg terug naar een oudere versie: een update verandert de database."

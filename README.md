@@ -14,11 +14,18 @@ Named after zeta Sagittarii, which was there first.
 
 ## What it does, per system
 
-Every action keeps to the same order: download and verify first, while the
-program still runs; unpack and check beside the running copy; stop the
-program politely and wait; swap; start it again if it was running. When the
-program does not stop, nothing is changed and the tile says so. Ascella
-never kills anything.
+Every action keeps to the same order: refuse if the program is open ("Close X
+first, then update", with a Stop button beside the message: it may be in the
+middle of a round); download and verify; unpack and check beside the
+program; swap. Nothing waits for ever: every command Ascella runs has a
+deadline (`Ascella.Runner`), and a program that does not answer in time ends
+the action with an error the tile shows in words. Ascella never kills
+anything.
+
+A catalogue entry with `"rollback": false` has no way back, and the button and
+the function both refuse. That is OpenPairings and Alnasl: their databases
+migrate forward on an update, and an older program over a newer database is
+how tournaments get damaged.
 
 | | install / update | stop | rollback |
 |---|---|---|---|
@@ -43,7 +50,9 @@ conclude that the port is taken by something else.
 Right after an install the tile asks whether to make the program easy to
 start, and every installed tile has a Shortcuts list: a Start menu and Desktop
 shortcut on Windows (to pin to the taskbar, right-click the shortcut), the Dock
-and login items on a Mac, a menu entry, Desktop file and GNOME favourite on
+(edited through `defaults export` / PlistBuddy / `defaults import`, because the
+Dock's preferences live in a daemon that ignores a plist written behind its
+back, and read back the same way) and login items on a Mac, a menu entry, Desktop file and GNOME favourite on
 Linux (`Ascella.Launchers`, one adapter per system). What Ascella makes is recorded in `launchers.json` in
 its own folder, and only that is ever removed. They point at paths that an
 update does not move. Remove on a tile stops the program and removes it the

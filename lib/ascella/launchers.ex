@@ -208,7 +208,7 @@ defmodule Ascella.Launchers do
 
           %{
             kind: kind,
-            on?: record != nil and adapter.exists?(kind, record),
+            on?: record != nil and adapter.exists?(kind, record, ctx),
             path: record && record["path"]
           }
         end

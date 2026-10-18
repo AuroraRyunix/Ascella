@@ -18,7 +18,7 @@ msgstr ""
 
 #: lib/ascella_web/controllers/help_html/show.html.heex:32
 #, elixir-autogen, elixir-format
-msgid "A program that is running is stopped first, the way it stops itself, and started again afterwards. If it does not stop within a minute, nothing is changed and the tile says so. On a Mac the previous version is kept, and the tile offers to go back to it."
+msgid "A program that is open is not updated: Ascella says so and offers to close it, because it may be in the middle of a round. Once it is closed, the update replaces the program and nothing else. If a program does not answer in time, Ascella gives up waiting, changes nothing more, and the tile says so. On a Mac the previous version is kept and the tile offers to go back to it, except for programs whose database changes on an update (OpenPairings and Alnasl): there is no way back for those."
 msgstr ""
 
 #: lib/ascella_web/components/core_components.ex:364
@@ -624,4 +624,24 @@ msgstr ""
 #: lib/ascella_web/words.ex:26
 #, elixir-autogen, elixir-format
 msgid "Yes, put it in the applications menu"
+msgstr ""
+
+#: lib/ascella_web/words.ex:1
+#, elixir-autogen, elixir-format
+msgid "%{name} is open. Close %{name} first, then update."
+msgstr ""
+
+#: lib/ascella_web/words.ex:1
+#, elixir-autogen, elixir-format
+msgid "%{program} did not answer in time, so Ascella gave up waiting. Nothing was changed after that point; try again."
+msgstr ""
+
+#: lib/ascella_web/words.ex:1
+#, elixir-autogen, elixir-format
+msgid "There is no way back for this program: updating changes its database, and an older version cannot read that."
+msgstr ""
+
+#: lib/ascella_web/live/home_live.ex:1
+#, elixir-autogen, elixir-format
+msgid "There is no way back to an older version: updating changes its database."
 msgstr ""

@@ -66,7 +66,7 @@ defmodule Ascella.Launchers.Windows do
   def delete(_kind, _app, _record, _ctx), do: :ok
 
   @impl true
-  def exists?(_kind, %{"path" => path}), do: File.exists?(path)
+  def exists?(_kind, %{"path" => path}, _ctx), do: File.exists?(path)
 
   defp folder(:start_menu, ctx), do: ctx.start_menu
   defp folder(:desktop, ctx), do: ctx.desktop
