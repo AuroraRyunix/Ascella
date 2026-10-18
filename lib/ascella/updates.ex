@@ -24,7 +24,7 @@ defmodule Ascella.Updates do
 
   alias Ascella.{Fetch, Paths}
 
-  @repo "AuroraRyunix/Ascella"
+  @repo "teapot-chess/Ascella"
   @update_exit_code 90
 
   def repo, do: @repo

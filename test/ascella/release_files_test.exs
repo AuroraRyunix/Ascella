@@ -60,7 +60,7 @@ defmodule Ascella.ReleaseFilesTest do
       for script <- ~w(rel/linux/install.sh rel/linux/update.sh) do
         assert read(script) =~ ~s(file="ascella-linux-$cpu.tar.gz")
         assert read(script) =~ "SHA256SUMS"
-        assert read(script) =~ ~s(REPO="AuroraRyunix/Ascella")
+        assert read(script) =~ ~s(REPO="teapot-chess/Ascella")
       end
 
       # ...and every fixed name, in the workflow's own list of what a
@@ -330,7 +330,7 @@ defmodule Ascella.ReleaseFilesTest do
       assert launcher =~ "#define ASCELLA_UPDATE_EXIT_CODE 90\n"
       assert launcher =~ ~S[L"ASCELLA_UPDATER", can_update() ? L"velopack" : NULL]
       assert launcher =~ ~s(L"ASCELLA_LAUNCHER_TOKEN")
-      assert launcher =~ ~s(#define REPO_URL "https://github.com/AuroraRyunix/Ascella")
+      assert launcher =~ ~s(#define REPO_URL "https://github.com/teapot-chess/Ascella")
 
       if Code.ensure_loaded?(Ascella.Updates) and
            function_exported?(Ascella.Updates, :update_exit_code, 0) do

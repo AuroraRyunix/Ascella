@@ -5,7 +5,7 @@
 
 [Unit]
 Description=Ascella - installs and runs the hall's other programs
-Documentation=https://github.com/AuroraRyunix/Ascella
+Documentation=https://github.com/teapot-chess/Ascella
 After=network.target
 
 [Service]

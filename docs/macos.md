@@ -29,7 +29,7 @@ like any other. Open *Terminal* (Applications > Utilities) and paste this
 as one line:
 
 ```sh
-cd ~/Downloads && curl -fLO https://github.com/AuroraRyunix/Ascella/releases/latest/download/ascella-macos-aarch64.zip && curl -fLO https://github.com/AuroraRyunix/Ascella/releases/latest/download/SHA256SUMS && grep ' ascella-macos-aarch64.zip$' SHA256SUMS | shasum -a 256 -c - && ditto -x -k ascella-macos-aarch64.zip /Applications && open /Applications/Ascella.app
+cd ~/Downloads && curl -fLO https://github.com/teapot-chess/Ascella/releases/latest/download/ascella-macos-aarch64.zip && curl -fLO https://github.com/teapot-chess/Ascella/releases/latest/download/SHA256SUMS && grep ' ascella-macos-aarch64.zip$' SHA256SUMS | shasum -a 256 -c - && ditto -x -k ascella-macos-aarch64.zip /Applications && open /Applications/Ascella.app
 ```
 
 In order: download the zip and the release's checksums into Downloads,

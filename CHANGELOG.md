@@ -19,6 +19,7 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Change] **New address.** The repository moved to github.com/teapot-chess; old links still redirect, out of politeness rather than obligation.
 ## [0.2.1] - 2026-10-18
 
 - [Fix] **"Keep in Dock" on a Mac now goes through the Dock's own preferences daemon.** The Dock keeps its settings in `cfprefsd`, which caches them and ignores a plist file written behind its back; Ascella wrote the file, so ticking the box often did nothing and unticking it removed nothing. Now: `defaults export com.apple.dock`, edit `persistent-apps` in that copy (a proper file tile with its `file:///Applications/Name.app/` URL; removal deletes every tile pointing at the bundle), `defaults import`, `killall Dock`. Whether the app is in the Dock is read from an export too, so the checkbox shows what the Dock shows instead of what Ascella remembers.

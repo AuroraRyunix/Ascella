@@ -25,7 +25,7 @@
 
 set -eu
 
-REPO="AuroraRyunix/Ascella"
+REPO="teapot-chess/Ascella"
 INSTALL_DIR="/opt/ascella"
 DATA_DIR="/var/lib/ascella"
 CONF_FILE="/etc/ascella/ascella.env"

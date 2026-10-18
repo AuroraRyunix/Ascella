@@ -3,7 +3,7 @@
 # as a service that starts with the machine. Ascella then installs, updates,
 # starts and stops the hall's other programs on that box.
 #
-#   curl -fsSL https://github.com/AuroraRyunix/Ascella/releases/latest/download/install.sh | sudo sh
+#   curl -fsSL https://github.com/teapot-chess/Ascella/releases/latest/download/install.sh | sudo sh
 #
 # or, in a hall without internet, from a release unpacked on a stick:
 #
@@ -37,7 +37,7 @@
 
 set -eu
 
-REPO="AuroraRyunix/Ascella"
+REPO="teapot-chess/Ascella"
 INSTALL_DIR="/opt/ascella"
 DATA_DIR="/var/lib/ascella"
 CONF_DIR="/etc/ascella"

@@ -121,7 +121,7 @@
  * people to click Yes without reading, which they will need later. */
 #define ASK_BEFORE_STOPPING 0
 
-#define REPO_URL "https://github.com/AuroraRyunix/Ascella"
+#define REPO_URL "https://github.com/teapot-chess/Ascella"
 #define RUN_KEY L"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 #define RUN_VALUE L"Ascella"
 

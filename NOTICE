@@ -7,7 +7,7 @@ The release machinery - rel/ (the Windows launcher and installer script, the
 Linux installer, updater and systemd units, the macOS app and its build
 scripts), .github/workflows, tools/release_notes.sh and the launcher details
 endpoint (lib/ascella/launcher_details*, lib/ascella_web/plugs/
-launcher_stats.ex) - came from Alnasl (https://github.com/AuroraRyunix/Alnasl),
+launcher_stats.ex) - came from Alnasl (https://github.com/teapot-chess/Alnasl),
 by the same author and under the same licence. Changes: the names
 (Alnasl -> Ascella), the port, the parts that only make sense for a program
 that reads boards over a serial port or keeps a database, and on Linux the

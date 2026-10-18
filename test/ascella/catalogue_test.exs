@@ -8,7 +8,7 @@ defmodule Ascella.CatalogueTest do
       %{
         "id" => "polis",
         "name" => "Polis",
-        "repo" => "AuroraRyunix/Polis",
+        "repo" => "teapot-chess/Polis",
         "layout" => "hall",
         "mark" => "polis.svg"
       },
@@ -43,7 +43,7 @@ defmodule Ascella.CatalogueTest do
 
     for app <- apps do
       assert File.regular?(Application.app_dir(:ascella, "priv/marks/#{app.mark}")), app.mark
-      assert String.starts_with?(app.repo, "AuroraRyunix/")
+      assert String.starts_with?(app.repo, "teapot-chess/")
       assert app.blurb["en"] && app.blurb["nl"]
     end
 
@@ -101,7 +101,7 @@ defmodule Ascella.CatalogueTest do
 
     for bad <- [
           %{"repo" => "https://evil.example/x"},
-          %{"repo" => "AuroraRyunix/../x/y"},
+          %{"repo" => "teapot-chess/../x/y"},
           %{"id" => "Polis; rm"},
           %{"mark" => "../../etc/passwd"},
           %{"accent" => ["red", "blue"]},

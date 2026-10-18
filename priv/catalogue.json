@@ -4,7 +4,7 @@
     {
       "id": "openpairings",
       "name": "OpenPairings",
-      "repo": "AuroraRyunix/OpenPairings",
+      "repo": "teapot-chess/OpenPairings",
       "mark": "openpairings.svg",
       "accent": ["#24503a", "#7fbf9c"],
       "port": 4000,
@@ -49,7 +49,7 @@
     {
       "id": "alnasl",
       "name": "Alnasl",
-      "repo": "AuroraRyunix/Alnasl",
+      "repo": "teapot-chess/Alnasl",
       "layout": "hall",
       "mark": "alnasl.svg",
       "accent": ["#7a2e1e", "#e2a08c"],
@@ -63,7 +63,7 @@
     {
       "id": "arkab",
       "name": "Arkab",
-      "repo": "AuroraRyunix/Arkab",
+      "repo": "teapot-chess/Arkab",
       "layout": "hall",
       "mark": "arkab.svg",
       "accent": ["#7a2e1e", "#e2a08c"],
@@ -76,7 +76,7 @@
     {
       "id": "polis",
       "name": "Polis",
-      "repo": "AuroraRyunix/Polis",
+      "repo": "teapot-chess/Polis",
       "layout": "hall",
       "mark": "polis.svg",
       "accent": ["#1f4f8a", "#8fb8ec"],
@@ -89,7 +89,7 @@
     {
       "id": "nunki",
       "name": "Nunki",
-      "repo": "AuroraRyunix/Nunki",
+      "repo": "teapot-chess/Nunki",
       "layout": "hall",
       "mark": "nunki.svg",
       "accent": ["#94600a", "#f0c46a"],

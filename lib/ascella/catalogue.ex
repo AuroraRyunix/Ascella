@@ -9,7 +9,7 @@ defmodule Ascella.Catalogue do
       {
         "id": "polis",                    lower case; the key everywhere
         "name": "Polis",                  what people read
-        "repo": "AuroraRyunix/Polis",     on GitHub, and only there
+        "repo": "teapot-chess/Polis",     on GitHub, and only there
         "layout": "hall",                 optional: ships like Alnasl, see below
         "mark": "polis.svg",              a file in priv/marks
         "accent": ["#1f4f8a", "#8fb8ec"], the mark's accent, day and night
