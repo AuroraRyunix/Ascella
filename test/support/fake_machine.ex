@@ -35,6 +35,11 @@ defmodule Ascella.FakeMachine do
       local_app_data: Path.join(tmp, "LocalAppData"),
       program_files: Path.join(tmp, "ProgramFiles"),
       mac_apps: [Path.join(tmp, "Applications")],
+      start_menu: Path.join(tmp, "StartMenu"),
+      desktop: Path.join(tmp, "home/Desktop"),
+      applications: Path.join(tmp, "home/.local/share/applications"),
+      launchers: Path.join(tmp, "ascella/launchers"),
+      gsettings: true,
       root: Path.join(tmp, "root"),
       sudo: true,
       run_as: nil,
@@ -73,6 +78,15 @@ defmodule Ascella.FakeMachine do
     end)
   end
 
+  # A clean start: `env -i NAME=value... command args` runs the command.
+  defp handle(agent, ctx, "env", _p, ["-i" | rest], opts) do
+    [command | args] = Enum.drop_while(rest, &(&1 =~ ~r/\A[A-Z_]+=/))
+    handle(agent, ctx, Path.basename(command), command, args, opts)
+  end
+
+  defp handle(_agent, _ctx, name, _p, _args, _opts) when name in ["defaults", "killall"],
+    do: {"", 0}
+
   # --- macOS ------------------------------------------------------------------------
 
   defp handle(_agent, _ctx, "ditto", _p, ["-x", "-k", zip, dest], _opts) do
@@ -96,6 +110,12 @@ defmodule Ascella.FakeMachine do
     if Agent.get(agent, &(MapSet.size(&1.running) > 0)), do: {"", 0}, else: {"", 1}
   end
 
+  defp handle(_agent, _ctx, "osascript", _p, ["-e" | _] = args, _opts) do
+    # The Trash: the bundle is gone from where it was.
+    File.rm_rf!(List.last(args))
+    {"", 0}
+  end
+
   defp handle(agent, _ctx, "open", _p, [path], _opts) do
     up(agent, Path.basename(path))
     {"", 0}
@@ -115,14 +135,19 @@ defmodule Ascella.FakeMachine do
          "powershell",
          _p,
          ["-NoProfile", "-NonInteractive", "-Command", script],
-         _opts
+         opts
        ) do
-    [_, class] = Regex.run(~r/FindWindowW\('([A-Za-z0-9_]+)'/, script)
-    exe = String.replace_suffix(class, "Launcher", ".exe")
+    if script =~ "CreateShortcut" do
+      File.write!(opts[:env] |> List.keyfind!("ASCELLA_LNK", 0) |> elem(1), "lnk")
+      {"", 0}
+    else
+      [_, class] = Regex.run(~r/FindWindowW\('([A-Za-z0-9_]+)'/, script)
+      exe = String.replace_suffix(class, "Launcher", ".exe")
 
-    cond do
-      not running?(agent, exe) -> {"", 3}
-      true -> (down(agent, exe) && {"", 0}) || {"", 0}
+      cond do
+        not running?(agent, exe) -> {"", 3}
+        true -> (down(agent, exe) && {"", 0}) || {"", 0}
+      end
     end
   end
 
@@ -182,6 +207,11 @@ defmodule Ascella.FakeMachine do
     {"", 0}
   end
 
+  defp handle(_agent, _ctx, "Update.exe", program, ["--silent", "uninstall"], _opts) do
+    File.rm_rf!(Path.dirname(program))
+    {"", 0}
+  end
+
   defp handle(_agent, _ctx, "taskkill", _p, ["/IM", _exe], _opts), do: {"", 0}
 
   # --- Linux ------------------------------------------------------------------------
@@ -234,6 +264,19 @@ defmodule Ascella.FakeMachine do
 
   defp handle(agent, _ctx, "systemctl", _p, ["is-active", "--quiet", unit], _opts) do
     if running?(agent, unit), do: {"", 0}, else: {"", 3}
+  end
+
+  defp handle(agent, _ctx, "sudo", _p, ["-n", "systemctl", "disable", "--now", unit], _opts) do
+    down(agent, unit)
+    {"", 0}
+  end
+
+  defp handle(_agent, _ctx, "sudo", _p, ["-n", "systemctl", "daemon-reload"], _opts), do: {"", 0}
+
+  defp handle(_agent, _ctx, "sudo", _p, ["-n", "rm", flag, path], _opts)
+       when flag in ["-f", "-rf"] do
+    File.rm_rf!(path)
+    {"", 0}
   end
 
   defp handle(agent, _ctx, "sudo", _p, ["-n", "systemctl", "stop", unit], _opts) do

@@ -128,6 +128,10 @@ defmodule Ascella.Installer.Portable do
     end
   end
 
+  # Ascella made every file of it, in its own folder: that folder goes.
+  @impl true
+  def uninstall(app, _spec, ctx), do: Fs.rm_rf(base(app, ctx), ctx)
+
   @impl true
   def start(app, spec, %{family: :windows} = ctx) do
     with {:ok, path} <- start_path(app, spec, ctx), do: Installer.start_detached(ctx, path)
@@ -138,6 +142,7 @@ defmodule Ascella.Installer.Portable do
          {:ok, prefix} <- as_user(ctx) do
       log = Path.join(base(app, ctx), "#{app.id}.log")
       {program, args} = launch(prefix, path, log)
+      {program, args} = Ascella.CleanStart.command(:linux, program, args)
 
       case Runner.run(ctx, program, args, cd: Path.dirname(path)) do
         {out, 0} ->

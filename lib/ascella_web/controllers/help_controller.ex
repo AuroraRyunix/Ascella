@@ -5,6 +5,13 @@ defmodule AscellaWeb.HelpController do
     render(conn, :show, page_title: "Ascella · " <> gettext("Help"))
   end
 
+  def remove_self(conn, _params) do
+    render(conn, :remove_self,
+      page_title: "Ascella · " <> gettext("Remove Ascella"),
+      family: Ascella.Platform.family()
+    )
+  end
+
   @doc "The favicon, drawn from the mark (`AscellaWeb.Logo.favicon/0`)."
   def favicon(conn, _params) do
     conn

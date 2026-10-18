@@ -18,6 +18,12 @@ defmodule Ascella.Context do
     * `sudo` - run Linux installers through `sudo -n` (Ascella is not root)
     * `run_as` - on Linux, the user a portable app is started as when
       Ascella itself runs as root
+    * `start_menu`, `desktop`, `applications` - where launchers go: the
+      Windows Start menu's Programs folder, the Desktop folder, and the Linux
+      `~/.local/share/applications`
+    * `launchers` - Ascella's own folder for what it made (its record,
+      wrapper scripts, icons)
+    * `gsettings` - whether GNOME's `gsettings` is there (Linux)
     * `stop_timeout_ms`, `poll_ms` - how long a polite stop is waited for
   """
 
@@ -33,6 +39,11 @@ defmodule Ascella.Context do
     :local_app_data,
     :program_files,
     :run_as,
+    :start_menu,
+    :desktop,
+    :applications,
+    :launchers,
+    gsettings: false,
     mac_apps: [],
     homes: [],
     root: "",
@@ -67,6 +78,11 @@ defmodule Ascella.Context do
       program_files: System.get_env("ProgramFiles"),
       run_as: run_as,
       mac_apps: mac_apps(home),
+      start_menu: start_menu(),
+      desktop: desktop(home),
+      applications: applications(home),
+      launchers: Path.join(Paths.data(), "launchers"),
+      gsettings: family == :linux and System.find_executable("gsettings") != nil,
       sudo: family == :linux and not root?(),
       github: Application.get_env(:ascella, :github_req_options, [])
     }
@@ -79,6 +95,37 @@ defmodule Ascella.Context do
       dir when dir not in [nil, ""] -> [Path.expand(dir)]
       _unset -> ["/Applications", Path.join(home, "Applications")]
     end
+  end
+
+  defp start_menu do
+    case System.get_env("APPDATA") do
+      dir when dir not in [nil, ""] ->
+        Path.join([dir, "Microsoft", "Windows", "Start Menu", "Programs"])
+
+      _unset ->
+        nil
+    end
+  end
+
+  # A Desktop that OneDrive has taken over lives under OneDrive.
+  defp desktop(home) do
+    one_drive = System.get_env("OneDrive")
+
+    Enum.find(
+      [one_drive && Path.join(one_drive, "Desktop"), Path.join(home, "Desktop")],
+      Path.join(home, "Desktop"),
+      &(is_binary(&1) and File.dir?(&1))
+    )
+  end
+
+  defp applications(home) do
+    base =
+      case System.get_env("XDG_DATA_HOME") do
+        dir when dir not in [nil, ""] -> dir
+        _unset -> Path.join(home, ".local/share")
+      end
+
+    Path.join(base, "applications")
   end
 
   defp root? do

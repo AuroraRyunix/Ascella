@@ -96,6 +96,32 @@ defmodule Ascella.Installer.LinuxScript do
     end
   end
 
+  # The app's own uninstall.sh when it ships one (Alnasl's family does, and
+  # leaves the data): it knows its units and its service user. Otherwise
+  # install.sh's work in reverse - stop and disable the unit, remove the unit
+  # file and the install folder, tell systemd. The data in /var/lib/<id> is
+  # not part of "the program" and is left. Run as root (through sudo -n when
+  # Ascella is not).
+  @impl true
+  def uninstall(_app, spec, ctx) do
+    dir = Context.linux_path(ctx, spec.install_dir)
+    own = Path.join(dir, "uninstall.sh")
+    unit = Context.linux_path(ctx, "/etc/systemd/system/" <> spec.unit)
+
+    with :ok <- Ascella.Guard.check(dir, ctx) do
+      if File.exists?(own) do
+        Installer.run(ctx, "sh", [own], as_root: true)
+      else
+        with :ok <-
+               Installer.run(ctx, "systemctl", ["disable", "--now", spec.unit], as_root: true),
+             :ok <- Installer.run(ctx, "rm", ["-f", unit], as_root: true),
+             :ok <- Installer.run(ctx, "rm", ["-rf", dir], as_root: true) do
+          Installer.run(ctx, "systemctl", ["daemon-reload"], as_root: true)
+        end
+      end
+    end
+  end
+
   @impl true
   def start(_app, spec, ctx),
     do: Installer.run(ctx, "systemctl", ["start", spec.unit], as_root: true)

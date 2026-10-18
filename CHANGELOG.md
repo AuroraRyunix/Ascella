@@ -19,6 +19,13 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Fix] **A program Ascella starts now starts the way Finder or the Start menu would start it.** Start on a Mac handed `open` everything Ascella had exported, `PORT=4090` among it; Arkab read that, found Ascella answering on 4090, concluded it was already running, and left with a clear conscience. Programs are now started from an empty environment (`env -i`) with only `HOME`, `USER`, `LOGNAME`, the locale, a system `PATH` and, on Linux, the display session. A list of what to remove would only be a list of what we remembered. systemd and WMI already start clean and are left as they are.
+
+- [Feature] **Programs can be made easy to start.** Right after an install the tile asks, and every installed tile has a Shortcuts list. Windows: a Start menu and a Desktop shortcut (to pin to the taskbar you right-click the shortcut, because Windows closed every honest way to do it for you, and the dishonest ones are not Ascella's style). Mac: keep in the Dock, open at login. Linux: an entry in the applications menu, a file on the Desktop, GNOME favourites when `gsettings` is there. Ascella writes down what it made, removes only that, and leaves a shortcut with the same name that somebody else made exactly where it was.
+- [Feature] **Shortcuts survive updates.** They point at the Velopack stub in the install folder, the `.app`, or a small wrapper that reads `current` when it runs; never at a versioned folder. After every install, update and rollback the file ones are written again anyway.
+- [Feature] **Remove.** Each installed tile has one. The program is stopped, then taken away the way its system does it: its own `Update.exe` on Windows, the Bin on a Mac, the app's own `uninstall.sh` (or install reversed) on Linux; the shortcuts Ascella made go with it. The data is kept, and the confirmation says why: it lives outside the program. Deleting it too is a checkbox and a second confirmation. An app removed by something else loses its shortcuts the next time Ascella notices.
+- [Feature] **Removing Ascella itself** has a page with the exact steps per system, because a program that uninstalls itself while running has opinions about the order.
+
 ## [0.1.0] - 2026-10-18
 
 - [Feature] **One page for the hall's programs.** A tile each for OpenPairings, Alnasl, Arkab, Polis and Nunki, with its mark, what is installed, what is out and whether it runs; Install, Update, Start, Stop and Open per program, and Update all, which does them one at a time because a hall has one network and no patience. English and Dutch.

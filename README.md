@@ -32,6 +32,17 @@ Ascella's launcher holds what it starts in a job object that dies with it,
 and OpenPairings closing in round five because someone closed Ascella would
 be a poor advertisement.
 
+## Shortcuts and removal
+
+Once a program is installed its tile offers to make it easy to start: a Start
+menu and Desktop shortcut on Windows, the Dock and login items on a Mac, a
+menu entry, Desktop file and GNOME favourite on Linux (`Ascella.Launchers`,
+one adapter per system). What Ascella makes is recorded in `launchers.json` in
+its own folder, and only that is ever removed. They point at paths that an
+update does not move. Remove on a tile stops the program and removes it the
+system's way (Velopack's `Update.exe`, the Bin, the app's `uninstall.sh`),
+keeps the data unless asked twice, and takes the shortcuts with it.
+
 ## Downloads, and what is trusted
 
 Only from the GitHub repositories in the catalogue, only over HTTPS, and

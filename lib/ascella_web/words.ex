@@ -11,7 +11,19 @@ defmodule AscellaWeb.Words do
   def action(:start), do: gettext("Starting")
   def action(:stop), do: gettext("Stopping")
   def action(:rollback), do: gettext("Going back")
+  def action(:uninstall), do: gettext("Removing")
   def action(:queued), do: gettext("Waiting its turn")
+
+  def launcher(:start_menu), do: gettext("In the Start menu")
+  def launcher(:desktop), do: gettext("On the Desktop")
+  def launcher(:dock), do: gettext("Keep in the Dock")
+  def launcher(:login), do: gettext("Open at login")
+  def launcher(:menu), do: gettext("In the applications menu")
+  def launcher(:favourites), do: gettext("Among the favourites")
+
+  def offer([:start_menu]), do: gettext("Yes, put it in the Start menu")
+  def offer([:dock]), do: gettext("Yes, keep it in the Dock")
+  def offer(_menu), do: gettext("Yes, put it in the applications menu")
 
   def error({_action, reason}), do: reason(reason)
 
@@ -67,6 +79,25 @@ defmodule AscellaWeb.Words do
       gettext(
         "Ascella runs as root and will not start apps as root. Set ASCELLA_RUN_AS to a user."
       )
+
+  def reason(:already_there),
+    do: gettext("Something with that name is already there, not made by Ascella. Left alone.")
+
+  def reason(:not_offered), do: gettext("That is not possible on this computer.")
+  def reason(:nothing_to_launch), do: gettext("There is nothing to start from a shortcut.")
+  def reason(:not_made), do: gettext("The shortcut was not made.")
+
+  def reason({:not_ours, path}),
+    do: gettext("Not removed: %{path} is not in a folder Ascella makes shortcuts in.", path: path)
+
+  def reason(:per_machine_remove),
+    do:
+      gettext(
+        "It is installed for everyone on this PC. Remove it with the .msi, as an administrator."
+      )
+
+  def reason(:not_removed),
+    do: gettext("Its uninstaller ran, but the program is still there. Look again in a minute.")
 
   def reason(:no_previous), do: gettext("There is no previous version to go back to.")
   def reason(:not_supported), do: gettext("Going back is not possible for this kind of install.")

@@ -16,13 +16,13 @@ defmodule Ascella.Apps do
 
   require Logger
 
-  alias Ascella.{Catalogue, Context, Fetch, Installer, Updates}
+  alias Ascella.{Catalogue, Context, Fetch, Installer, Launchers, Updates}
 
   @topic "apps"
   @look_every :timer.seconds(10)
   @check_every :timer.minutes(30)
 
-  @actions ~w(install update start stop rollback)a
+  @actions ~w(install update start stop rollback uninstall)a
 
   def topic, do: @topic
   def subscribe, do: Phoenix.PubSub.subscribe(Ascella.PubSub, @topic)
@@ -42,7 +42,31 @@ defmodule Ascella.Apps do
   def look_now, do: GenServer.cast(__MODULE__, :look)
 
   @doc "Starts `action` (#{inspect(@actions)}) for app `id`. `{:error, :busy}` when something is already under way."
-  def act(id, action) when action in @actions, do: GenServer.call(__MODULE__, {:act, id, action})
+  def act(id, action, opts \\ []) when action in @actions,
+    do: GenServer.call(__MODULE__, {:act, id, action, opts})
+
+  @doc "Makes launcher `kind` for app `id` (see `Ascella.Launchers`)."
+  def add_launcher(id, kind), do: launcher(id, &Launchers.add(&1, kind, &2))
+
+  @doc "Removes launcher `kind` of app `id`, if Ascella made it."
+  def remove_launcher(id, kind), do: launcher(id, &Launchers.remove(&1, kind, &2))
+
+  @doc "The Windows folder reveal for a shortcut Ascella made."
+  def reveal_launcher(id, kind), do: launcher(id, &Launchers.reveal(&1, kind, &2))
+
+  @doc "Stops offering shortcuts after the install of `id` (they can still be set on the tile)."
+  def dismiss_offer(id), do: GenServer.cast(__MODULE__, {:dismiss_offer, id})
+
+  defp launcher(id, fun) do
+    result =
+      case Catalogue.get(id) do
+        nil -> {:error, :unknown}
+        app -> fun.(app, Context.current())
+      end
+
+    GenServer.cast(__MODULE__, :look)
+    result
+  end
 
   @doc "Updates every installed app for which a newer release is out, one after another."
   def update_all, do: GenServer.call(__MODULE__, :update_all)
@@ -60,6 +84,7 @@ defmodule Ascella.Apps do
       latest: %{},
       own: nil,
       busy: %{},
+      offers: MapSet.new(),
       errors: %{},
       queue: []
     }
@@ -79,7 +104,7 @@ defmodule Ascella.Apps do
 
   def handle_call(:own_update, _from, state), do: {:reply, state.own, state}
 
-  def handle_call({:act, id, action}, _from, state) do
+  def handle_call({:act, id, action, opts}, _from, state) do
     case Catalogue.get(id) do
       nil ->
         {:reply, {:error, :unknown}, state}
@@ -88,7 +113,7 @@ defmodule Ascella.Apps do
         if Map.has_key?(state.busy, id) do
           {:reply, {:error, :busy}, state}
         else
-          state = run(app, action, state)
+          state = run(app, action, opts, state)
           {:reply, :ok, state}
         end
     end
@@ -107,7 +132,11 @@ defmodule Ascella.Apps do
   end
 
   @impl true
-  def handle_cast(:look, state), do: {:noreply, look(state)}
+  def handle_cast(:look, state), do: {:noreply, state |> look() |> broadcast()}
+
+  def handle_cast({:dismiss_offer, id}, state),
+    do: {:noreply, broadcast(%{state | offers: MapSet.delete(state.offers, id)})}
+
   def handle_cast(:check, state), do: {:noreply, check(state)}
 
   @impl true
@@ -139,7 +168,15 @@ defmodule Ascella.Apps do
         other -> Map.put(state.errors, id, {action, other})
       end
 
-    state = %{state | busy: Map.delete(state.busy, id), errors: errors}
+    # A first install is when shortcuts are offered; an uninstall ends the offer.
+    offers =
+      cond do
+        result == :ok and action == :install -> MapSet.put(state.offers, id)
+        action == :uninstall -> MapSet.delete(state.offers, id)
+        true -> state.offers
+      end
+
+    state = %{state | busy: Map.delete(state.busy, id), errors: errors, offers: offers}
     {:noreply, state |> look() |> next_in_queue() |> broadcast()}
   end
 
@@ -176,6 +213,8 @@ defmodule Ascella.Apps do
       latest_error: match?({:error, _}, latest) && elem(latest, 1),
       running?: Map.get(state.running, app.id, false),
       busy: Map.get(state.busy, app.id) || if(app.id in state.queue, do: :queued),
+      launchers: if(status.state == :installed, do: Launchers.options(app, ctx), else: []),
+      offer?: MapSet.member?(state.offers, app.id),
       error: Map.get(state.errors, app.id),
       update?:
         status.state == :installed and is_binary(latest_version) and is_binary(status.version) and
@@ -191,7 +230,7 @@ defmodule Ascella.Apps do
 
   # --- doing ------------------------------------------------------------------------
 
-  defp run(app, action, state) do
+  defp run(app, action, opts, state) do
     ctx = Context.current()
     release = release_for(app, state)
 
@@ -199,7 +238,7 @@ defmodule Ascella.Apps do
       Task.Supervisor.async_nolink(Ascella.TaskSupervisor, fn ->
         result =
           try do
-            perform(action, app, release, ctx)
+            perform(action, app, release, ctx, opts)
           rescue
             error -> {:error, Exception.message(error)}
           end
@@ -216,15 +255,22 @@ defmodule Ascella.Apps do
     })
   end
 
-  defp perform(action, _app, nil, _ctx) when action in [:install, :update],
+  defp perform(action, _app, nil, _ctx, _opts) when action in [:install, :update],
     do: {:error, :no_release}
 
-  defp perform(action, app, release, ctx) when action in [:install, :update],
-    do: Installer.install(app, release, ctx)
+  defp perform(action, app, release, ctx, _opts) when action in [:install, :update] do
+    with :ok <- Installer.install(app, release, ctx), do: Launchers.refresh(app, ctx)
+  end
 
-  defp perform(:start, app, _release, ctx), do: Installer.start(app, ctx)
-  defp perform(:stop, app, _release, ctx), do: Installer.stop(app, ctx)
-  defp perform(:rollback, app, _release, ctx), do: Installer.rollback(app, ctx)
+  defp perform(:start, app, _release, ctx, _opts), do: Installer.start(app, ctx)
+  defp perform(:stop, app, _release, ctx, _opts), do: Installer.stop(app, ctx)
+
+  defp perform(:rollback, app, _release, ctx, _opts) do
+    with :ok <- Installer.rollback(app, ctx), do: Launchers.refresh(app, ctx)
+  end
+
+  defp perform(:uninstall, app, _release, ctx, opts),
+    do: Installer.uninstall(app, ctx, delete_data: opts[:delete_data] == true)
 
   defp release_for(app, state) do
     case Map.get(state.latest, app.id) do
@@ -243,7 +289,7 @@ defmodule Ascella.Apps do
 
       case Catalogue.get(id) do
         nil -> next_in_queue(state)
-        app -> run(app, :update, state)
+        app -> run(app, :update, [], state)
       end
     end
   end
@@ -263,14 +309,30 @@ defmodule Ascella.Apps do
            safely(fn -> Installer.installed(app, ctx) end, %{
              state: :absent,
              version: nil,
-             previous: nil
+             previous: nil,
+             failed: true
            })
          ), Map.put(running, app.id, safely(fn -> Installer.running?(app, ctx) end, false))}
       end)
 
+    forget_launchers(status, state, ctx)
     changed? = status != state.status or running != state.running
     state = %{state | status: status, running: running}
     if changed?, do: broadcast(state), else: state
+  end
+
+  # An app removed by something other than Ascella (its own uninstaller)
+  # leaves shortcuts that point at nothing. Cleaned when it was seen
+  # installed before and is plainly gone now - not when looking failed.
+  defp forget_launchers(status, state, ctx) do
+    for {id, %{state: :absent} = now} <- status,
+        not Map.has_key?(now, :failed),
+        Map.get(state.status, id, %{state: :absent}).state == :installed,
+        app = Catalogue.get(id) do
+      safely(fn -> Launchers.remove_all(app, ctx) end, :ok)
+    end
+
+    :ok
   end
 
   defp check(state) do

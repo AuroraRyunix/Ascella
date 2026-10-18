@@ -105,11 +105,45 @@ defmodule Ascella.Installer.MacApp do
     end
   end
 
+  # Into the Trash, by Finder, so that "Put Back" works and nothing is gone
+  # for good because Ascella said so. The kept previous version goes too: it
+  # is Ascella's own copy, in a folder of its own.
+  @impl true
+  def uninstall(_app, spec, ctx) do
+    case location(spec, ctx) do
+      nil ->
+        {:error, :absent}
+
+      dir ->
+        script = [
+          "-e",
+          "on run argv",
+          "-e",
+          "tell application \"Finder\" to delete POSIX file (item 1 of argv)",
+          "-e",
+          "end run",
+          Path.join(dir, spec.bundle)
+        ]
+
+        with :ok <- Installer.run(ctx, "osascript", script),
+             :ok <- Fs.rm_rf(previous_path(dir, spec), ctx) do
+          _ = File.rmdir(Path.dirname(previous_path(dir, spec)))
+          :ok
+        end
+    end
+  end
+
   @impl true
   def start(_app, spec, ctx) do
     case location(spec, ctx) do
-      nil -> {:error, :absent}
-      dir -> Installer.run(ctx, "open", [Path.join(dir, spec.bundle)])
+      nil ->
+        {:error, :absent}
+
+      dir ->
+        {program, args} =
+          Ascella.CleanStart.command(:macos, "/usr/bin/open", [Path.join(dir, spec.bundle)])
+
+        Installer.run(ctx, program, args)
     end
   end
 

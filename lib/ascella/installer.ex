@@ -33,6 +33,8 @@ defmodule Ascella.Installer do
   @callback start(Catalogue.App.t(), map, Context.t()) :: :ok | {:error, term}
   @callback stop(Catalogue.App.t(), map, Context.t()) :: :ok | {:error, term}
   @callback rollback(Catalogue.App.t(), map, Context.t()) :: :ok | {:error, term}
+  @doc "Removes the program, the way the system removes it; never its data. The app is stopped already."
+  @callback uninstall(Catalogue.App.t(), map, Context.t()) :: :ok | {:error, term}
 
   @modules %{
     mac_app: Ascella.Installer.MacApp,
@@ -82,6 +84,62 @@ defmodule Ascella.Installer do
             else: :ok
         end
     end
+  end
+
+  @doc """
+  Removes `app`: stops it, takes the program away the platform's way, and
+  removes the launchers Ascella made for it. Its data is kept, unless
+  `delete_data: true` is passed (the page asks first, and defaults to no).
+  """
+  def uninstall(app, ctx, opts \\ []) do
+    with_mod(app, ctx, fn mod, spec ->
+      with :ok <- removable(mod.installed(app, spec, ctx)),
+           :ok <- stop_gracefully(mod, app, spec, ctx),
+           :ok <- mod.uninstall(app, spec, ctx) do
+        launchers = Ascella.Launchers.remove_all(app, ctx)
+
+        with :ok <- if(opts[:delete_data], do: delete_data(app, mod, ctx), else: :ok),
+             do: launchers
+      end
+    end)
+  end
+
+  defp removable(%{state: :absent}), do: {:error, :absent}
+  defp removable(%{state: :per_machine}), do: {:error, :per_machine_remove}
+  defp removable(_installed), do: :ok
+
+  # The one place that deletes data, and only the exact directories the
+  # catalogue names for this app, and only when none of them contains or lies
+  # in another app's data. Ascella.Fs would refuse all of it, which is why
+  # this does not go through Ascella.Fs.
+  defp delete_data(app, mod, ctx) do
+    others = Enum.reject(Catalogue.apps(), &(&1.id == app.id))
+    protected = [ctx.home, ctx.local_app_data, ctx.root, "/"] |> Enum.filter(&is_binary/1)
+
+    Enum.reduce_while(Ascella.Guard.data_dirs(app, ctx), :ok, fn dir, :ok ->
+      cond do
+        Path.expand(dir) in Enum.map(protected, &Path.expand/1) ->
+          {:halt, {:error, {:data_dir, app.id, dir}}}
+
+        Ascella.Guard.check(dir, ctx, others) != :ok ->
+          {:halt, Ascella.Guard.check(dir, ctx, others)}
+
+        not File.exists?(dir) ->
+          {:cont, :ok}
+
+        mod == Ascella.Installer.LinuxScript ->
+          case run(ctx, "rm", ["-rf", dir], as_root: true) do
+            :ok -> {:cont, :ok}
+            error -> {:halt, error}
+          end
+
+        true ->
+          case File.rm_rf(dir) do
+            {:ok, _} -> {:cont, :ok}
+            {:error, reason, _file} -> {:halt, {:error, reason}}
+          end
+      end
+    end)
   end
 
   def start(app, ctx), do: call(app, ctx, :start)
