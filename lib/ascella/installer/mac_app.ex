@@ -108,8 +108,11 @@ defmodule Ascella.Installer.MacApp do
   @impl true
   def start(_app, spec, ctx) do
     case location(spec, ctx) do
-      nil -> {:error, :absent}
-      dir -> Installer.run(ctx, "open", [Path.join(dir, spec.bundle)])
+      nil ->
+        {:error, :absent}
+
+      dir ->
+        Installer.run(ctx, "open", [Path.join(dir, spec.bundle)], env: Ascella.CleanEnv.unsets())
     end
   end
 

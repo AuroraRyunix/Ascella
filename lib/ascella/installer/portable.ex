@@ -139,7 +139,7 @@ defmodule Ascella.Installer.Portable do
       log = Path.join(base(app, ctx), "#{app.id}.log")
       {program, args} = launch(prefix, path, log)
 
-      case Runner.run(ctx, program, args, cd: Path.dirname(path)) do
+      case Runner.run(ctx, program, args, cd: Path.dirname(path), env: Ascella.CleanEnv.unsets()) do
         {out, 0} ->
           case Regex.run(~r/(\d+)\s*\z/, out) do
             [_, pid] -> Fs.write(Path.join(base(app, ctx), "pid"), pid, ctx)
