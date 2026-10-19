@@ -6,8 +6,8 @@ defmodule AscellaWeb.HomeLive do
   """
   use AscellaWeb, :live_view
 
-  alias Ascella.{Apps, Context, Launchers, Updates}
-  alias AscellaWeb.{Logo, Words}
+  alias Ascella.{Apps, Context, Fetch, Launchers, Updates}
+  alias AscellaWeb.{Logo, ReleaseNotes, Words}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,6 +19,7 @@ defmodule AscellaWeb.HomeLive do
      |> assign(:removing, nil)
      |> assign(:confirm_data, nil)
      |> assign(:notes, %{})
+     |> assign(:whats_new, %{})
      |> load()}
   end
 
@@ -111,6 +112,26 @@ defmodule AscellaWeb.HomeLive do
     {:noreply, put_flash(socket, :info, gettext("Asking GitHub."))}
   end
 
+  # What's new: open asks GitHub for the notes in the background, a second
+  # press closes it. Nothing here is on the way of the update buttons.
+  def handle_event("whats_new", %{"id" => key}, socket) do
+    cond do
+      Map.has_key?(socket.assigns.whats_new, key) ->
+        {:noreply, update(socket, :whats_new, &Map.delete(&1, key))}
+
+      args = notes_args(socket, key) ->
+        {repo, installed, latest, github} = args
+
+        {:noreply,
+         socket
+         |> update(:whats_new, &Map.put(&1, key, :loading))
+         |> start_async({:notes, key}, fn -> Fetch.notes(repo, installed, latest, github) end)}
+
+      true ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("update_self", _params, socket) do
     case Apps.update_self() do
       :ok ->
@@ -127,6 +148,33 @@ defmodule AscellaWeb.HomeLive do
       {:error, reason} ->
         {:noreply, socket |> put_flash(:error, Words.reason(reason)) |> load()}
     end
+  end
+
+  @impl true
+  def handle_async({:notes, key}, result, socket) do
+    outcome =
+      case result do
+        {:ok, {:ok, notes}} -> {:ok, notes}
+        {:ok, {:error, reason}} -> {:error, reason}
+        {:exit, reason} -> {:error, {:offline, reason}}
+      end
+
+    # Closed in the meantime: nobody is waiting for the answer.
+    if Map.has_key?(socket.assigns.whats_new, key),
+      do: {:noreply, update(socket, :whats_new, &Map.put(&1, key, outcome))},
+      else: {:noreply, socket}
+  end
+
+  defp notes_args(socket, "ascella") do
+    own = socket.assigns.own
+    own && {Updates.repo(), Updates.current_version(), own.version, Context.current().github}
+  end
+
+  defp notes_args(socket, id) do
+    tile = Enum.find(socket.assigns.tiles, &(&1.app.id == id))
+
+    tile && tile.update? && tile.latest &&
+      {tile.app.repo, tile.version, tile.latest, Context.current().github}
   end
 
   defp remove(socket, id, delete_data?) do
@@ -195,19 +243,19 @@ defmodule AscellaWeb.HomeLive do
       <section class="intro">
         <div>
           <h1>{gettext("The hall's programs")}</h1>
-
+          
           <p class="lede">
             {gettext(
               "Installed, updated, started and stopped from here. Their data is never touched."
             )}
           </p>
         </div>
-
+        
         <div class="intro-actions">
           <button id="check-now" class="btn btn-quiet" phx-click="check">
             {gettext("Check for updates")}
           </button>
-
+          
           <button
             id="update-all"
             class="btn btn-primary"
@@ -218,11 +266,11 @@ defmodule AscellaWeb.HomeLive do
           </button>
         </div>
       </section>
-
+      
       <div :if={@last_self && elem(@last_self, 0) != :ok} id="self-update-note" class="own-update">
         <p>{self_note(@last_self)}</p>
       </div>
-
+      
       <div :if={@own} id="own-update" class="own-update">
         <div>
           <p>
@@ -230,31 +278,38 @@ defmodule AscellaWeb.HomeLive do
             <span class="muted">
               {gettext("This is %{current}.", current: Updates.current_version())}
             </span>
-            <span :if={@own_message}>{@own_message}</span>
+             <span :if={@own_message}>{@own_message}</span>
             <span :if={@own.waiting?} id="own-waiting">
               {gettext("Waiting for the other programs to finish first.")}
             </span>
           </p>
-
+          
           <p :if={@own.error} class="problem" id="own-error">{Words.error(@own.error)}</p>
+           <.whats_new key="ascella" state={@whats_new["ascella"]} />
         </div>
-
+        
         <%= if @own.kind == :manual do %>
-          <a href={Updates.releases_page()} target="_blank" rel="noopener" class="btn btn-quiet">
-            {gettext("How to update")}
-          </a>
+          <div class="own-buttons">
+            <.whats_new_button key="ascella" open?={Map.has_key?(@whats_new, "ascella")} />
+            <a href={Updates.releases_page()} target="_blank" rel="noopener" class="btn btn-quiet">
+              {gettext("How to update")}
+            </a>
+          </div>
         <% else %>
-          <button
-            id="update-self"
-            class="btn btn-primary"
-            phx-click="update_self"
-            disabled={@own.busy? or @own.waiting?}
-          >
-            {if @own.busy?, do: gettext("Updating..."), else: gettext("Update Ascella")}
-          </button>
+          <div class="own-buttons">
+            <.whats_new_button key="ascella" open?={Map.has_key?(@whats_new, "ascella")} />
+            <button
+              id="update-self"
+              class="btn btn-primary"
+              phx-click="update_self"
+              disabled={@own.busy? or @own.waiting?}
+            >
+              {if @own.busy?, do: gettext("Updating..."), else: gettext("Update Ascella")}
+            </button>
+          </div>
         <% end %>
       </div>
-
+      
       <ul class="tiles" id="tiles">
         <li
           :for={tile <- @tiles}
@@ -266,10 +321,10 @@ defmodule AscellaWeb.HomeLive do
             <.mark file={tile.app.mark} />
             <div class="tile-title">
               <h2>{tile.app.name}</h2>
-
+              
               <p class="blurb">{Map.get(tile.app.blurb, @locale) || Map.get(tile.app.blurb, "en")}</p>
             </div>
-
+            
             <span
               :if={tile.state == :installed}
               class={["pill", if(tile.running?, do: "pill-on", else: "pill-off")]}
@@ -278,11 +333,11 @@ defmodule AscellaWeb.HomeLive do
               {if tile.running?, do: gettext("Running"), else: gettext("Stopped")}
             </span>
           </div>
-
+          
           <dl class="versions">
             <div>
               <dt>{gettext("Installed")}</dt>
-
+              
               <dd id={"installed-#{tile.app.id}"}>
                 <%= cond do %>
                   <% tile.state == :absent -> %>
@@ -294,10 +349,10 @@ defmodule AscellaWeb.HomeLive do
                 <% end %>
               </dd>
             </div>
-
+            
             <div>
               <dt>{gettext("Latest")}</dt>
-
+              
               <dd id={"latest-#{tile.app.id}"}>
                 <%= cond do %>
                   <% tile.latest -> %>
@@ -310,7 +365,7 @@ defmodule AscellaWeb.HomeLive do
               </dd>
             </div>
           </dl>
-
+          
           <p :if={not tile.build?} class="note">
             <%= if tile.intel_mac? do %>
               {gettext("No build for Intel Macs yet.")}
@@ -318,11 +373,11 @@ defmodule AscellaWeb.HomeLive do
               {gettext("No build for this computer.")}
             <% end %>
           </p>
-
+          
           <p :if={tile.state == :per_machine} class="note">
             {gettext("Installed for everyone on this PC; updated with its .msi.")}
           </p>
-
+          
           <p :if={tile.error} class="problem" id={"error-#{tile.app.id}"}>
             {Words.error(tile.error, tile.app)}
             <button
@@ -336,7 +391,7 @@ defmodule AscellaWeb.HomeLive do
               {gettext("Stop")}
             </button>
           </p>
-
+          
           <p
             :if={tile.state == :installed and not tile.rollback?}
             class="note"
@@ -344,7 +399,7 @@ defmodule AscellaWeb.HomeLive do
           >
             {gettext("There is no way back to an older version: updating changes its database.")}
           </p>
-
+          
           <div
             :if={tile.state == :installed and tile.launchers != [] and !tile.busy}
             class="launchers"
@@ -352,7 +407,7 @@ defmodule AscellaWeb.HomeLive do
           >
             <div :if={tile.offer?} class="offer" id={"offer-#{tile.app.id}"}>
               <p>{gettext("Make %{name} easy to start?", name: tile.app.name)}</p>
-
+              
               <div class="offer-buttons">
                 <button
                   id={"offer-yes-#{tile.app.id}"}
@@ -363,7 +418,7 @@ defmodule AscellaWeb.HomeLive do
                 >
                   {Words.offer(@default_kinds)}
                 </button>
-
+                
                 <button
                   id={"offer-no-#{tile.app.id}"}
                   class="btn btn-quiet"
@@ -375,10 +430,10 @@ defmodule AscellaWeb.HomeLive do
                 </button>
               </div>
             </div>
-
+            
             <details open={tile.offer?}>
               <summary>{gettext("Shortcuts")}</summary>
-
+              
               <label :for={opt <- tile.launchers} class="check">
                 <input
                   type="checkbox"
@@ -391,7 +446,7 @@ defmodule AscellaWeb.HomeLive do
                 /> <span>{Words.launcher(opt.kind)}</span>
               </label>
             </details>
-
+            
             <%= case @notes[tile.app.id] do %>
               <% :pin_taskbar -> %>
                 <p class="note" id={"note-#{tile.app.id}"}>
@@ -413,7 +468,7 @@ defmodule AscellaWeb.HomeLive do
               <% _none -> %>
             <% end %>
           </div>
-
+          
           <div
             :if={@removing == tile.app.id}
             class="remove-panel"
@@ -426,7 +481,7 @@ defmodule AscellaWeb.HomeLive do
                   name: tile.app.name
                 )}
               </p>
-
+              
               <div class="offer-buttons">
                 <button
                   id={"remove-data-yes-#{tile.app.id}"}
@@ -436,7 +491,7 @@ defmodule AscellaWeb.HomeLive do
                 >
                   {gettext("Remove it and delete the data")}
                 </button>
-
+                
                 <button
                   id={"remove-cancel-#{tile.app.id}"}
                   class="btn btn-quiet"
@@ -452,7 +507,7 @@ defmodule AscellaWeb.HomeLive do
                   name: tile.app.name
                 )}
               </p>
-
+              
               <.form
                 for={to_form(%{}, as: :remove)}
                 id={"remove-form-#{tile.app.id}"}
@@ -467,12 +522,12 @@ defmodule AscellaWeb.HomeLive do
                     id={"delete-data-#{tile.app.id}"}
                   /> <span>{gettext("Also delete its data")}</span>
                 </label>
-
+                
                 <div class="offer-buttons">
                   <button id={"remove-yes-#{tile.app.id}"} type="submit" class="btn">
                     {gettext("Remove")}
                   </button>
-
+                  
                   <button
                     id={"remove-cancel-#{tile.app.id}"}
                     type="button"
@@ -485,7 +540,12 @@ defmodule AscellaWeb.HomeLive do
               </.form>
             <% end %>
           </div>
-
+          
+          <.whats_new
+            :if={tile.update? and tile.state == :installed and !tile.busy}
+            key={tile.app.id}
+            state={@whats_new[tile.app.id]}
+          />
           <div class="tile-actions">
             <%= if tile.busy do %>
               <span class="busy" id={"busy-#{tile.app.id}"}>
@@ -503,7 +563,12 @@ defmodule AscellaWeb.HomeLive do
               >
                 {gettext("Install")}
               </button>
-
+              
+              <.whats_new_button
+                :if={tile.update? and tile.state == :installed}
+                key={tile.app.id}
+                open?={Map.has_key?(@whats_new, tile.app.id)}
+              />
               <button
                 :if={tile.update? and tile.state == :installed}
                 id={"update-#{tile.app.id}"}
@@ -514,7 +579,7 @@ defmodule AscellaWeb.HomeLive do
               >
                 {gettext("Update to %{version}", version: tile.latest)}
               </button>
-
+              
               <button
                 :if={tile.state != :absent and not tile.running?}
                 id={"start-#{tile.app.id}"}
@@ -525,7 +590,7 @@ defmodule AscellaWeb.HomeLive do
               >
                 {gettext("Start")}
               </button>
-
+              
               <button
                 :if={tile.running?}
                 id={"stop-#{tile.app.id}"}
@@ -536,7 +601,7 @@ defmodule AscellaWeb.HomeLive do
               >
                 {gettext("Stop")}
               </button>
-
+              
               <a
                 :if={tile.running? and tile.app.port}
                 id={"open-#{tile.app.id}"}
@@ -547,7 +612,7 @@ defmodule AscellaWeb.HomeLive do
               >
                 {gettext("Open")}
               </a>
-
+              
               <button
                 :if={tile.state == :installed and @removing != tile.app.id}
                 id={"remove-#{tile.app.id}"}
@@ -557,7 +622,7 @@ defmodule AscellaWeb.HomeLive do
               >
                 {gettext("Remove")}
               </button>
-
+              
               <button
                 :if={tile.previous && tile.rollback?}
                 id={"rollback-#{tile.app.id}"}
@@ -577,6 +642,55 @@ defmodule AscellaWeb.HomeLive do
     """
   end
 
+  attr :key, :string, required: true
+  attr :open?, :boolean, required: true
+
+  defp whats_new_button(assigns) do
+    ~H"""
+    <button
+      id={"whats-new-#{@key}"}
+      class="btn btn-quiet"
+      phx-click="whats_new"
+      phx-value-id={@key}
+      aria-expanded={to_string(@open?)}
+      aria-controls={"whats-new-panel-#{@key}"}
+    >
+      {gettext("What's new")}
+    </button>
+    """
+  end
+
+  attr :key, :string, required: true
+  attr :state, :any, default: nil
+
+  defp whats_new(assigns) do
+    ~H"""
+    <div :if={@state} id={"whats-new-panel-#{@key}"} class="whats-new">
+      <%= case @state do %>
+        <% :loading -> %>
+          <p class="busy" id={"whats-new-loading-#{@key}"}>
+            <span class="spinner" aria-hidden="true"></span> {gettext("Reading the release notes")}&hellip;
+          </p>
+        <% {:error, _reason} -> %>
+          <p class="problem" id={"whats-new-error-#{@key}"}>
+            {gettext(
+              "The release notes could not be fetched from GitHub. The update works without them."
+            )}
+          </p>
+        <% {:ok, []} -> %>
+          <p class="note" id={"whats-new-empty-#{@key}"}>
+            {gettext("GitHub has no notes for this update.")}
+          </p>
+        <% {:ok, releases} -> %>
+          <section :for={release <- releases} id={"whats-new-#{@key}-#{release.version}"}>
+            <h3>{release.version}</h3>
+             <ReleaseNotes.notes body={release.body} />
+          </section>
+      <% end %>
+    </div>
+    """
+  end
+
   defp running_error?({_action, {:running, _name}}), do: true
   defp running_error?(_other), do: false
 
@@ -589,7 +703,7 @@ defmodule AscellaWeb.HomeLive do
     <svg :if={@mark} class="tile-mark" viewBox={elem(@mark, 0)} aria-hidden="true">
       {Phoenix.HTML.raw(elem(@mark, 1))}
     </svg>
-    <span :if={!@mark} class="tile-mark tile-mark-none" aria-hidden="true"></span>
+     <span :if={!@mark} class="tile-mark tile-mark-none" aria-hidden="true"></span>
     """
   end
 end

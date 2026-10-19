@@ -12,6 +12,7 @@ Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launcher_d
 Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launchers.ex:138,59C0280
 Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launchers/linux.ex:72,7E66A27
 Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/fetch.ex:96,48B5F5
+Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/fetch.ex:201,6E04C76
 Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers.ex:136,22796EF
 Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers.ex:182,50D0B87
 Traversal.FileModule: Directory Traversal in `File.mkdir_p!`,lib/ascella/launchers.ex:378,5B79CF3
@@ -30,6 +31,7 @@ Traversal.FileModule: Directory Traversal in `File.open`,lib/ascella/launcher_de
 Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/catalogue.ex:100,778AB90
 Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/catalogue.ex:107,63EDD51
 Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/fetch.ex:143,6B48882
+Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/fetch.ex:248,14CD560
 Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer.ex:254,60E5375
 Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer/mac_app.ex:208,257CF22
 Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer/portable.ex:202,309A975
@@ -48,6 +50,8 @@ Traversal.FileModule: Directory Traversal in `File.rm_rf`,lib/ascella/installer.
 Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/access.ex:88,3D30DCA
 Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/fetch.ex:113,130CC1B
 Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/fetch.ex:114,601A5BE
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/fetch.ex:218,485A0C1
+Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/fetch.ex:219,410CF29
 Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launcher_details.ex:133,1ABECDA
 Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers.ex:310,1EF5D2A
 Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers.ex:344,4EBC56D
@@ -55,6 +59,8 @@ Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers.ex:
 Traversal.FileModule: Directory Traversal in `File.rm`,lib/ascella/launchers/macos.ex:142,468EE40
 Traversal.FileModule: Directory Traversal in `File.stream!`,lib/ascella/fetch.ex:125,293561D
 Traversal.FileModule: Directory Traversal in `File.stream!`,lib/ascella/fetch.ex:170,3427E9C
+Traversal.FileModule: Directory Traversal in `File.stream!`,lib/ascella/fetch.ex:230,315C0CA
+Traversal.FileModule: Directory Traversal in `File.stream!`,lib/ascella/fetch.ex:275,401A25D
 Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/access.ex:93,16ECE7B
 Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/fs.ex:40,3561CB3
 Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/launcher_details.ex:162,36C7505
@@ -68,4 +74,5 @@ Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/updates.ex
 XSS.Raw: XSS,lib/ascella_web/components/layouts.ex:21,4D367E2
 XSS.Raw: XSS,lib/ascella_web/live/home_live.ex:584,6D4EE35
 XSS.Raw: XSS,lib/ascella_web/live/home_live.ex:590,5C94EBA
+XSS.Raw: XSS,lib/ascella_web/live/home_live.ex:704,4194470
 XSS.SendResp: XSS in `send_resp`,lib/ascella_web/controllers/help_controller.ex:20,4AE328F
