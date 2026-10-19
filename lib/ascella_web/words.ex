@@ -31,6 +31,35 @@ defmodule AscellaWeb.Words do
   def error({_action, {:running, _name}}, %{name: name}), do: reason({:running, name})
   def error(error, _app), do: error(error)
 
+  def reason(:busy),
+    do:
+      gettext(
+        "Ascella is busy with another program. It updates itself when that is done, not before."
+      )
+
+  def reason(:updating_self), do: gettext("Ascella is updating itself. Try again in a minute.")
+  def reason(:not_newer), do: gettext("That is not newer than the Ascella that is running.")
+  def reason(:no_update), do: gettext("There is no newer Ascella.")
+
+  def reason({:not_writable, bundle}),
+    do:
+      gettext(
+        "Ascella cannot replace itself where it is (%{where}): that folder is not writable for you, or macOS is running it from a temporary copy. Quit Ascella, drag Ascella.app into the Applications folder in Finder, open it from there, and update again.",
+        where: bundle || "?"
+      )
+
+  def reason(:launcher_not_found),
+    do: gettext("Ascella could not tell which program to restart, so it changed nothing.")
+
+  def reason(:other_volume),
+    do: gettext("The new version would not be on the same disk as Ascella. Nothing was changed.")
+
+  def reason({:not_a_bundle, name}),
+    do: gettext("%{name} in the download is not a Mac app. Nothing was changed.", name: name)
+
+  def reason(:not_a_bundle),
+    do: gettext("This copy of Ascella is not inside an app, so it cannot replace itself.")
+
   def reason(:no_release), do: gettext("No release is known yet. Check for updates first.")
 
   def reason(:no_checksums),

@@ -4,6 +4,11 @@ defmodule Ascella.Apps do
   page, a second browser tab and "Update all" agree about it: what is
   installed, what is out, what is running, and what Ascella is busy with.
 
+  Ascella itself is the one thing here that is not in the catalogue, and the
+  one thing that must wait for everything else: it updates last, and never
+  while anything is being installed, updated or rolled back (`busy?/1` below
+  is the single place that knows). Its update stops the program this runs in.
+
   One action per app at a time. Actions run in tasks, so the page stays
   alive during a download that takes the hall's Wi-Fi five minutes; each
   ends with that app's status read again from the machine, not assumed.
@@ -24,6 +29,9 @@ defmodule Ascella.Apps do
 
   @actions ~w(install update start stop rollback uninstall)a
 
+  # Ascella's place in the busy map and in the queue. No app has this id.
+  @self "ascella"
+
   def topic, do: @topic
   def subscribe, do: Phoenix.PubSub.subscribe(Ascella.PubSub, @topic)
 
@@ -32,8 +40,18 @@ defmodule Ascella.Apps do
   @doc "One map per app, in catalogue order (see `tile/2`)."
   def tiles, do: GenServer.call(__MODULE__, :tiles)
 
-  @doc "Ascella's own update, or nil: `%{version, kind}`."
+  @doc """
+  Ascella's own update, or nil: `%{version, tag, kind, busy?, waiting?, error}`.
+  `busy?` while it is under way, `waiting?` while it is queued behind the
+  other programs, `error` the last thing that went wrong.
+  """
   def own_update, do: GenServer.call(__MODULE__, :own_update)
+
+  @doc "Updates Ascella itself now: `:ok`, or `{:error, reason}` (see `Ascella.Updates.decide/1`)."
+  def update_self, do: GenServer.call(__MODULE__, :update_self)
+
+  @doc "Whether anything is being installed, updated or rolled back, or is waiting to be."
+  def busy?, do: GenServer.call(__MODULE__, :busy?)
 
   @doc "Asks GitHub again, for every app and for Ascella itself."
   def check_now, do: GenServer.cast(__MODULE__, :check)
@@ -68,7 +86,12 @@ defmodule Ascella.Apps do
     result
   end
 
-  @doc "Updates every installed app for which a newer release is out, one after another."
+  @doc """
+  Updates every installed app for which a newer release is out, one after
+  another, and then Ascella itself when it has an update too (its id,
+  "#{@self}", is the last of the ids). `{:error, :updating_self}` while Ascella is
+  already replacing itself.
+  """
   def update_all, do: GenServer.call(__MODULE__, :update_all)
 
   # --- the process -----------------------------------------------------------------
@@ -102,7 +125,19 @@ defmodule Ascella.Apps do
     {:reply, Enum.map(Catalogue.apps(), &tile(&1, state)), state}
   end
 
-  def handle_call(:own_update, _from, state), do: {:reply, state.own, state}
+  def handle_call(:own_update, _from, state), do: {:reply, own(state), state}
+
+  def handle_call(:busy?, _from, state), do: {:reply, busy?(state), state}
+
+  def handle_call(:update_self, _from, state) do
+    case decide_self(state) do
+      {:ok, _kind} ->
+        {:reply, :ok, run_self(%{state | queue: state.queue -- [@self]})}
+
+      {:error, _reason} = error ->
+        {:reply, error, state}
+    end
+  end
 
   def handle_call({:act, id, action, opts}, _from, state) do
     case Catalogue.get(id) do
@@ -110,14 +145,22 @@ defmodule Ascella.Apps do
         {:reply, {:error, :unknown}, state}
 
       app ->
-        if Map.has_key?(state.busy, id) do
-          {:reply, {:error, :busy}, state}
-        else
-          state = run(app, action, opts, state)
-          {:reply, :ok, state}
+        cond do
+          Map.has_key?(state.busy, @self) ->
+            {:reply, {:error, :updating_self}, state}
+
+          Map.has_key?(state.busy, id) ->
+            {:reply, {:error, :busy}, state}
+
+          true ->
+            state = run(app, action, opts, state)
+            {:reply, :ok, state}
         end
     end
   end
+
+  def handle_call(:update_all, _from, %{busy: %{@self => _}} = state),
+    do: {:reply, {:error, :updating_self}, state}
 
   def handle_call(:update_all, _from, state) do
     ids =
@@ -127,6 +170,7 @@ defmodule Ascella.Apps do
           not Map.has_key?(state.busy, app.id),
           do: app.id
 
+    ids = if self_due?(state), do: ids ++ [@self], else: ids
     state = %{state | queue: state.queue ++ (ids -- state.queue)}
     {:reply, {:ok, ids}, state |> next_in_queue() |> broadcast()}
   end
@@ -288,11 +332,84 @@ defmodule Ascella.Apps do
     else
       state = %{state | queue: rest}
 
-      case Catalogue.get(id) do
-        nil -> next_in_queue(state)
-        app -> run(app, :update, [], state)
+      cond do
+        id == @self -> next_self(state)
+        app = Catalogue.get(id) -> run(app, :update, [], state)
+        true -> next_in_queue(state)
       end
     end
+  end
+
+  # Ascella's turn, last in the queue. Asked again, not assumed: the others
+  # may have taken a while, and a refusal is shown on the page, not lost.
+  defp next_self(state) do
+    case decide_self(state) do
+      {:ok, _kind} ->
+        run_self(state)
+
+      {:error, reason} ->
+        broadcast(%{state | errors: Map.put(state.errors, @self, {:update, reason})})
+    end
+  end
+
+  # --- Ascella itself ------------------------------------------------------------
+
+  # The single answer to "is anything under way". The queue counts, except
+  # for Ascella's own place in it: that is what is waiting for the answer.
+  defp busy?(state), do: map_size(state.busy) > 0 or Enum.any?(state.queue, &(&1 != @self))
+
+  defp decide_self(state) do
+    kind = Updates.install_kind()
+
+    Updates.decide(
+      Map.merge(
+        %{
+          own: state.own,
+          current: Updates.current_version(),
+          busy?: busy?(state),
+          kind: kind
+        },
+        Updates.location_facts(kind)
+      )
+    )
+  end
+
+  # Whether "Update all" has Ascella's own update to add to the list.
+  defp self_due?(state) do
+    state.own != nil and Updates.newer?(state.own.version, Updates.current_version()) and
+      state.own.kind != :manual
+  end
+
+  defp own(%{own: nil}), do: nil
+
+  defp own(state) do
+    Map.merge(state.own, %{
+      busy?: Map.has_key?(state.busy, @self),
+      waiting?: @self in state.queue,
+      error: Map.get(state.errors, @self)
+    })
+  end
+
+  defp run_self(state) do
+    ctx = Context.current()
+    own = state.own
+
+    Task.Supervisor.async_nolink(Ascella.TaskSupervisor, fn ->
+      result =
+        try do
+          Updates.apply(own, ctx)
+        rescue
+          error -> {:error, Exception.message(error)}
+        end
+
+      {:done, @self, :update_self, result}
+    end)
+
+    broadcast(%{
+      state
+      | busy: Map.put(state.busy, @self, :update_self),
+        errors: Map.delete(state.errors, @self)
+    })
   end
 
   # --- looking ------------------------------------------------------------------------

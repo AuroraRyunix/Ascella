@@ -35,6 +35,9 @@ defmodule AscellaWeb.HomeLive do
       {:error, :busy} ->
         {:noreply, put_flash(socket, :error, gettext("Ascella is already busy with that app."))}
 
+      {:error, :updating_self} ->
+        {:noreply, put_flash(socket, :error, Words.reason(:updating_self))}
+
       {:error, _} ->
         {:noreply, socket}
     end
@@ -91,14 +94,16 @@ defmodule AscellaWeb.HomeLive do
   def handle_event("remove_with_data", %{"id" => id}, socket), do: remove(socket, id, true)
 
   def handle_event("update_all", _params, socket) do
-    {:ok, ids} = Apps.update_all()
+    case Apps.update_all() do
+      {:ok, []} ->
+        {:noreply, socket |> put_flash(:info, gettext("Everything is up to date.")) |> load()}
 
-    socket =
-      if ids == [],
-        do: put_flash(socket, :info, gettext("Everything is up to date.")),
-        else: socket
+      {:ok, _ids} ->
+        {:noreply, load(socket)}
 
-    {:noreply, load(socket)}
+      {:error, reason} ->
+        {:noreply, socket |> put_flash(:error, Words.reason(reason)) |> load()}
+    end
   end
 
   def handle_event("check", _params, socket) do
@@ -107,26 +112,20 @@ defmodule AscellaWeb.HomeLive do
   end
 
   def handle_event("update_self", _params, socket) do
-    case Apps.own_update() do
-      nil ->
-        {:noreply, socket}
+    case Apps.update_self() do
+      :ok ->
+        {:noreply,
+         assign(
+           socket,
+           :own_message,
+           gettext("Ascella is updating itself. This page comes back in a minute.")
+         )}
 
-      update ->
-        case Updates.apply(update) do
-          :ok ->
-            {:noreply,
-             assign(
-               socket,
-               :own_message,
-               gettext("Ascella is updating itself. This page comes back in a minute.")
-             )}
+      {:error, reason} when reason in [:manual, :no_update] ->
+        {:noreply, load(socket)}
 
-          {:error, :manual} ->
-            {:noreply, socket}
-
-          {:error, reason} ->
-            {:noreply, put_flash(socket, :error, Words.reason(reason))}
-        end
+      {:error, reason} ->
+        {:noreply, socket |> put_flash(:error, Words.reason(reason)) |> load()}
     end
   end
 
@@ -145,6 +144,27 @@ defmodule AscellaWeb.HomeLive do
     end
   end
 
+  defp self_note({:rolled_back, version}),
+    do:
+      gettext(
+        "The update to Ascella %{version} did not start, so the previous version was put back. Nothing else was changed.",
+        version: version
+      )
+
+  defp self_note({:failed, version}),
+    do:
+      gettext(
+        "The update to Ascella %{version} did not start, and the previous version could not be put back. Ascella.app is in its folder; the previous one is in .ascella-previous beside it.",
+        version: version
+      )
+
+  defp self_note({:stuck, version}),
+    do:
+      gettext(
+        "The update to Ascella %{version} is in place, but the old Ascella did not quit in time, so the new one was not opened. Quit Ascella and open it again.",
+        version: version
+      )
+
   defp launcher_note(:start_menu), do: :pin_taskbar
   defp launcher_note(_kind), do: nil
 
@@ -153,13 +173,18 @@ defmodule AscellaWeb.HomeLive do
   defp note(socket, id, {:error, reason}, _note),
     do: update(socket, :notes, &Map.put(&1, id, {:error, reason}))
 
+  # Ascella's own update counts for "Update all" when it can be applied here.
+  defp own_due?(own), do: own != nil and own.kind != :manual
+
   defp load(socket) do
     tiles = Apps.tiles()
+    own = Apps.own_update()
 
     socket
     |> assign(:tiles, tiles)
-    |> assign(:updates, Enum.count(tiles, & &1.update?))
-    |> assign(:own, Apps.own_update())
+    |> assign(:own, own)
+    |> assign(:updates, Enum.count(tiles, & &1.update?) + if(own_due?(own), do: 1, else: 0))
+    |> assign(:last_self, Updates.last_result())
     |> assign(:default_kinds, Launchers.defaults(Context.current()))
   end
 
@@ -194,19 +219,38 @@ defmodule AscellaWeb.HomeLive do
         </div>
       </section>
 
+      <div :if={@last_self && elem(@last_self, 0) != :ok} id="self-update-note" class="own-update">
+        <p>{self_note(@last_self)}</p>
+      </div>
+
       <div :if={@own} id="own-update" class="own-update">
-        <p>
-          {gettext("Ascella %{version} is out.", version: @own.version)}
-          <span :if={@own_message}>{@own_message}</span>
-        </p>
+        <div>
+          <p>
+            {gettext("Ascella %{version}, update available.", version: @own.version)}
+            <span class="muted">
+              {gettext("This is %{current}.", current: Updates.current_version())}
+            </span>
+            <span :if={@own_message}>{@own_message}</span>
+            <span :if={@own.waiting?} id="own-waiting">
+              {gettext("Waiting for the other programs to finish first.")}
+            </span>
+          </p>
+
+          <p :if={@own.error} class="problem" id="own-error">{Words.error(@own.error)}</p>
+        </div>
 
         <%= if @own.kind == :manual do %>
           <a href={Updates.releases_page()} target="_blank" rel="noopener" class="btn btn-quiet">
             {gettext("How to update")}
           </a>
         <% else %>
-          <button id="update-self" class="btn btn-primary" phx-click="update_self">
-            {gettext("Install and restart")}
+          <button
+            id="update-self"
+            class="btn btn-primary"
+            phx-click="update_self"
+            disabled={@own.busy? or @own.waiting?}
+          >
+            {if @own.busy?, do: gettext("Updating..."), else: gettext("Update Ascella")}
           </button>
         <% end %>
       </div>

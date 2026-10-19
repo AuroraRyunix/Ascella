@@ -46,11 +46,15 @@
 # reaches - `Ascella.DataHome` refuses any folder inside a `.app`. CI starts
 # the app from a read-only bundle to prove it.
 #
-# ## No updates from here
+# ## Updates
 #
-# On Windows the launcher applies an update; a Mac app is replaced by hand
-# for now (docs/macos.md). ASCELLA_UPDATER=macos-app only tells the Setup page
-# what kind of copy this is.
+# Ascella replaces its own app from inside (Ascella.SelfUpdate.Mac): it swaps
+# the bundle on disk, starts a detached helper, and asks the app to quit with
+# SIGTERM. The app's pid is handed over here as ASCELLA_LAUNCHER_PID, because
+# the server has no other reliable way to know which process is its app. The
+# helper waits for that pid to go, opens the new bundle, and puts the old one
+# back if the new one does not answer. ASCELLA_UPDATER=macos-app tells the
+# server what kind of copy it is.
 
 set -u
 
@@ -84,6 +88,7 @@ fi
 
 export ASCELLA_DATA PORT
 export ASCELLA_UPDATER=macos-app
+export ASCELLA_LAUNCHER_PID="$PPID"
 # rel/env.sh.eex makes this the default too; said here as well because this
 # is the front door, and a Finder start passes nothing else in.
 export RELEASE_DISTRIBUTION="${RELEASE_DISTRIBUTION:-none}"
