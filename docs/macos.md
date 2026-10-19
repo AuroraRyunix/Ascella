@@ -1,7 +1,8 @@
 # Ascella on macOS
 
 Every push to `main` builds **`Ascella.app`** for Apple Silicon Macs, and a
-release attaches it. The build is Alnasl's, renamed, minus the serial port
+release attaches it, together with a build for **Intel Macs** (from macOS
+10.13; built only for a release, see [Intel Macs](#intel-macs)). The build is Alnasl's, renamed, minus the serial port
 and the database. Nobody on the project has a Mac on hand for every build:
 everything here was built and started on GitHub's macOS runners, and the
 [test list](#testing-a-build-on-a-real-mac) at the end is what a person
@@ -9,10 +10,44 @@ with a Mac still has to confirm.
 
 | | |
 |---|---|
-| Apple Silicon only (M1 and later) | `ascella-macos-aarch64.zip`, built on `macos-15` |
+| Apple Silicon (M1 and later) | `ascella-macos-aarch64.zip`, built on `macos-15` |
+| Intel | `ascella-macos-x86_64.zip`, built on `macos-15-intel`, only for a release or a hand-started run |
 | Runtime | Erlang/OTP 29.0.5 compiled on the runner by `rel/macos/build_otp.sh`, for macOS 11, with OpenSSL 3.5 compiled the same way and linked into `crypto` statically; Elixir 1.20 from its own precompiled zip. Cached, so only the first run with a given set of versions pays. Linux and Windows use `erlef/setup-beam`; on macOS that would be `erlef/otp_builds`, which is built for macOS 15 (see [Why the runtime is built here](#why-the-runtime-is-built-here)) |
-| Oldest macOS | 11 (Big Sur). Everything compiled on the runner is built for it (`MACOSX_DEPLOYMENT_TARGET=11.0`), and `build_app.sh` fails the build, naming the files, if any binary asks for newer; what they accept goes into `Info.plist` |
+| Oldest macOS | Apple Silicon: 11 (Big Sur); Intel: 10.13 (High Sierra), see [Intel Macs](#intel-macs). The Apple Silicon build is Everything compiled on the runner is built for it (`MACOSX_DEPLOYMENT_TARGET=11.0`, or the Intel target's `macos_min` in the workflow), and `build_app.sh` fails the build, naming the files, if any binary asks for newer; what they accept goes into `Info.plist` |
 | Signed | ad-hoc only, for now - see [Installing Ascella the first time](#installing-ascella-the-first-time) |
+
+## Intel Macs
+
+macOS 10 exists only on Intel Macs, so the Intel build is also the one that
+reaches back. It is `ascella-macos-x86_64.zip`, compiled on GitHub's Intel
+runner (`macos-15-intel`; it is a real Intel machine, nothing is
+cross-compiled) with `MACOSX_DEPLOYMENT_TARGET=10.13`, which `build_otp.sh`
+and `build_app.sh` read like the Apple Silicon build reads 11.0. What
+limits how far back it goes, and why it stops where it does, is written
+down under [How far back](#how-far-back).
+
+It is built **only when a release is published** (a version bump on `main`
+with its changelog section) **or when the workflow is started by hand**
+(*Actions > Build and release > Run workflow*), never on an ordinary push or
+pull request: the Intel runner is slow, and on every push it cost about
+thirteen minutes, which is why Intel was dropped on 2026-10-14. The `plan`
+job in `release.yml` decides, from the release's own two conditions, and
+adds the Intel target to the build matrix when it should run. A release
+that cannot build for Intel is not published.
+
+Ascella picks the zip that matches the Mac it is on, for its own update and
+for the programs it installs (`Ascella.Platform`): an Intel Mac gets
+`macos-x86_64`, an Apple Silicon Mac `macos-aarch64`, and an Intel Ascella
+running under Rosetta on an Apple Silicon Mac still counts as Apple Silicon
+(`sysctl.proc_translated`) and gets the arm64 builds. A program with no
+Intel build yet (all of them, today) is not offered the Apple Silicon zip:
+its tile says "No build for Intel Macs yet". When a program ships an Intel
+zip, one line in `priv/catalogue.json` turns it on (`"macos_x86_64": true`
+for a hall app; a `macos-x86_64` platform for any other).
+
+### How far back
+
+HOWFAR_PLACEHOLDER
 
 ## Installing Ascella the first time
 
@@ -82,7 +117,7 @@ from before it unpacks anything.
 ```
 Ascella.app/Contents/
   Info.plist              rel/macos/Info.plist, version from the release's VERSION
-  MacOS/Ascella           rel/macos/Launcher.swift, compiled (arm64, macOS 11+)
+  MacOS/Ascella           rel/macos/Launcher.swift, compiled (arm64, macOS 11+; x86_64, macOS 10.13+)
   Resources/launcher.sh   rel/macos/launcher.sh
   Resources/app/          the release (bin/ascella), whole
   Resources/Ascella.icns  from rel/macos/Ascella-icon.png

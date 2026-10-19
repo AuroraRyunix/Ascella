@@ -22,7 +22,9 @@
 # program on macOS 10.15 and newer links to /usr/lib/swift and the system
 # frameworks only, which the check below allows like any other system
 # library. Before 10.14.4 the system has no Swift runtime at all, so a target
-# below 10.15 gets the standard library linked in (-static-stdlib).
+# below 10.15 gets the Swift libraries it uses copied into
+# Contents/Frameworks (swift-stdlib-tool; swiftc no longer links them in
+# statically for Apple platforms), found through an @rpath.
 #
 # Checked here, because nothing after this would notice until somebody's Mac
 # refused to start the program:
@@ -49,8 +51,14 @@ case "$(uname -m)" in
   *) echo "::error::build_app.sh: unknown machine $(uname -m)" >&2; exit 1 ;;
 esac
 case "$supported" in
-  10.1[0-4] | 10.1[0-4].*) swift_extra="-static-stdlib" ;;
-  *) swift_extra="" ;;
+  10.1[0-4] | 10.1[0-4].*)
+    bundle_swift=1
+    swift_extra="-Xlinker -rpath -Xlinker @executable_path/../Frameworks"
+    ;;
+  *)
+    bundle_swift=0
+    swift_extra=""
+    ;;
 esac
 
 [ -x "$payload/bin/ascella" ] || {
@@ -97,6 +105,14 @@ cat "$swift_log"
 rm -f "$swift_log"
 echo "Launcher compiled: $(file "$app/Contents/MacOS/Ascella" | cut -d: -f2-)"
 otool -L "$app/Contents/MacOS/Ascella"
+
+if [ "$bundle_swift" = 1 ]; then
+  mkdir -p "$app/Contents/Frameworks"
+  xcrun swift-stdlib-tool --copy --platform macosx --scan-executable "$app/Contents/MacOS/Ascella" \
+    --destination "$app/Contents/Frameworks"
+  echo "Swift libraries copied into the app:"
+  ls "$app/Contents/Frameworks"
+fi
 
 # The Dock icon, from rel/macos/Ascella-icon.png: 1024px, drawn by
 # rel/windows/build_icon.py from priv/logo/mark.svg with Apple's margin

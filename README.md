@@ -102,7 +102,8 @@ code. A program that ships the way Alnasl does is one entry:
 
 `"layout": "hall"` means Alnasl's assets with the name filled in:
 `Polis-Setup.exe`, `PolisApp-{version}-full.nupkg`, `polis-macos-aarch64.zip`
-holding `Polis.app`, `polis-linux-<arch>.tar.gz` installed in `/opt/polis` as
+holding `Polis.app` (add `"macos_x86_64": true` once the app also publishes
+`polis-macos-x86_64.zip`; until then an Intel Mac is told there is no build), `polis-linux-<arch>.tar.gz` installed in `/opt/polis` as
 `polis.service`, data in `%LOCALAPPDATA%\PolisData`,
 `~/Library/Application Support/PolisData` and `/var/lib/polis`. Anything
 written out in `platforms` or `data` wins. The mark goes in `priv/marks/`.
@@ -154,7 +155,8 @@ running and never sent a signal.
 ## Installing Ascella
 
 Like Alnasl: a Velopack installer and a portable zip on Windows, a zipped
-`.app` on macOS 11 and newer (Apple Silicon), and `install.sh` with a systemd
+`.app` on macOS 11 and newer (Apple Silicon) or on macOS 10.13 and newer
+(Intel Macs; that build is made for releases only), and `install.sh` with a systemd
 unit on Linux. On a Mac the first install is one manual step, because the
 app is not notarised: see [docs/macos.md](docs/macos.md). After that,
 nothing Ascella downloads is quarantined. Removing Ascella itself has its own
