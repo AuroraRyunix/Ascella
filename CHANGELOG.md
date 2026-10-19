@@ -19,6 +19,8 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Feature] **Every program now has an Intel Mac build to offer.** OpenPairings, Alnasl, Arkab, Polis and Nunki publish one since their latest releases, so the "No build for Intel Macs yet" tiles are gone from Intel Macs. The sentence stays in the code for the next program that arrives without one.
+
 ## [0.3.3] - 2026-10-19
 
 - [Feature] **Ascella for Intel Macs, from macOS 10.13.** macOS 10 exists only on Intel Macs, and Intel Macs had been struck off on the 14th because their build cost thirteen minutes on every push. It is back, and it is built only when there is a release to put it in (or when somebody starts the workflow by hand), so the other pushes are as quick as they were. Ascella chooses the zip for the Mac it is on, for its own updates and for everything it installs; an Intel Ascella running under Rosetta on an Apple Silicon Mac is still treated as the Apple Silicon Mac it is. Every program in the bundle is checked against the oldest macOS promised, as before.

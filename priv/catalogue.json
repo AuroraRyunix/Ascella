@@ -27,6 +27,11 @@
           "asset": "openpairings_app_macos_aarch64.zip",
           "bundle": "OpenPairings.app"
         },
+        "macos-x86_64": {
+          "method": "mac_app",
+          "asset": "openpairings_app_macos_x86_64.zip",
+          "bundle": "OpenPairings.app"
+        },
         "linux-x86_64": {
           "method": "portable",
           "asset": "openpairings_portable_linux_x86_64.zip",
@@ -51,6 +56,7 @@
       "name": "Alnasl",
       "repo": "teapot-chess/Alnasl",
       "layout": "hall",
+      "macos_x86_64": true,
       "mark": "alnasl.svg",
       "accent": ["#7a2e1e", "#e2a08c"],
       "port": 4040,
@@ -65,6 +71,7 @@
       "name": "Arkab",
       "repo": "teapot-chess/Arkab",
       "layout": "hall",
+      "macos_x86_64": true,
       "mark": "arkab.svg",
       "accent": ["#7a2e1e", "#e2a08c"],
       "port": 4050,
@@ -78,6 +85,7 @@
       "name": "Polis",
       "repo": "teapot-chess/Polis",
       "layout": "hall",
+      "macos_x86_64": true,
       "mark": "polis.svg",
       "accent": ["#1f4f8a", "#8fb8ec"],
       "port": null,
@@ -91,6 +99,7 @@
       "name": "Nunki",
       "repo": "teapot-chess/Nunki",
       "layout": "hall",
+      "macos_x86_64": true,
       "mark": "nunki.svg",
       "accent": ["#94600a", "#f0c46a"],
       "port": null,

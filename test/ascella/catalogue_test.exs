@@ -38,13 +38,13 @@ defmodule Ascella.CatalogueTest do
   end
 
   test "an Intel Mac has a build only where the catalogue says the app publishes one" do
-    # Today, none: the shipped catalogue names no Intel build, and Ascella
-    # says so instead of offering the Apple Silicon zip.
+    # Since 2026-10-20 every app publishes one: each shipped entry names an
+    # Intel zip beside its Apple Silicon one.
     for app <- Catalogue.load!(Application.app_dir(:ascella, "priv/catalogue.json")) do
-      assert Catalogue.spec(app, "macos-aarch64") || app.id == "openpairings",
-             "#{app.id} lost its Apple Silicon build"
+      assert Catalogue.spec(app, "macos-aarch64"), "#{app.id} lost its Apple Silicon build"
 
-      assert Catalogue.spec(app, "macos-x86_64") == nil, "#{app.id}: an Intel build nobody made"
+      assert %{method: :mac_app} = Catalogue.spec(app, "macos-x86_64"),
+             "#{app.id}: no Intel build"
     end
 
     # One flag for a hall app, and the asset name is derived.
