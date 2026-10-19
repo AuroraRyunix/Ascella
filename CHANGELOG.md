@@ -19,6 +19,9 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-20
+
+- [Fix] **Stopping an app from Ascella actually stops it, and a self-update gets past "Stopping".** Every hall app's Mac window waited for its server to end inside the very queue that was to bring the news, so the server ended and the window said "Stopping" until somebody force-quit it. Quit from the menu never had the problem, which is how it survived. Ascella's own window is fixed here; the other programs get the same fix in their next release. Any stop that hangs anyway now ends after forty seconds.
 - [Feature] **"What's new" before the update, not after.** Beside every offered update, Ascella's own included, there is now a button that reads the release notes of each version between the one installed and the latest, newest first, straight from GitHub. Until now the way to learn what an update did was to install it and look around. The notes are fetched only when you ask, shown as text with bullets, bold, code and https links and nothing else (GitHub's text is not trusted with HTML), and if GitHub does not answer the page says so while the update button carries on regardless.
 
 - [Feature] **Every program now has an Intel Mac build to offer.** OpenPairings, Alnasl, Arkab, Polis and Nunki publish one since their latest releases, so the "No build for Intel Macs yet" tiles are gone from Intel Macs. The sentence stays in the code for the next program that arrives without one.

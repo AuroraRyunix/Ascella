@@ -43,6 +43,20 @@ defmodule Ascella.ReleaseFilesTest do
     assert sh =~ "Stopping: still running after 20 seconds"
   end
 
+  test "a stop by signal does not wait inside the main queue for news that queues behind it" do
+    swift = File.read!(Path.expand("../../rel/macos/Launcher.swift", __DIR__))
+    # The signal's quit goes through the run loop, and so does the news it waits for.
+    assert swift =~
+             "RunLoop.main.perform(inModes: [.default, .modalPanel]) { NSApp.terminate(nil) }"
+
+    assert swift =~
+             "RunLoop.main.perform(inModes: [.common]) { self?.serverEnded(status: status) }"
+
+    refute swift =~ "DispatchQueue.main.async { self?.serverEnded"
+    # And a stop that hangs anyway ends from another thread.
+    assert swift =~ "DispatchQueue.global().asyncAfter(deadline: .now() + 40) { exit(0) }"
+  end
+
   describe "the workflows" do
     test "every action is pinned to a commit, with the version beside it" do
       for file <- ~w(.github/workflows/ci.yml .github/workflows/release.yml),
