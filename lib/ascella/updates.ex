@@ -136,6 +136,9 @@ defmodule Ascella.Updates do
   @doc "Where the Mac helper leaves its last word: `ok VERSION`, `rolled-back VERSION`, `failed VERSION` or `stuck VERSION`."
   def status_file, do: Path.join(Paths.data(), "self-update-status")
 
+  @doc "The Mac helper's running account of every self-update, beside server.log; kept across restarts."
+  def log_file, do: Path.join([Paths.data(), "logs", "self-update.log"])
+
   @doc "The helper's last word as `{:ok | :rolled_back | :failed | :stuck, version}`, or nil."
   def last_result do
     with {:ok, text} <- File.read(status_file()),

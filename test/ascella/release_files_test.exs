@@ -34,6 +34,15 @@ defmodule Ascella.ReleaseFilesTest do
     |> Enum.reject(&String.contains?(&1, "/obj/"))
   end
 
+  test "a stop does not wait fifteen seconds for an open page, and says how it went" do
+    http = Application.fetch_env!(:ascella, AscellaWeb.Endpoint)[:http]
+    assert http[:thousand_island_options][:shutdown_timeout] <= 3_000
+
+    sh = File.read!(Path.expand("../../rel/macos/launcher.sh", __DIR__))
+    assert sh =~ "Stopping: the server stopped after"
+    assert sh =~ "Stopping: still running after 20 seconds"
+  end
+
   describe "the workflows" do
     test "every action is pinned to a commit, with the version beside it" do
       for file <- ~w(.github/workflows/ci.yml .github/workflows/release.yml),

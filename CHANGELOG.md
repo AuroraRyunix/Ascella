@@ -19,6 +19,9 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Fix] **A self-update no longer waits forever for the old Ascella to leave.** On a real Mac the old copy was asked to quit, did not, and two minutes later the update gave up with the new version sitting unopened in Applications. The helper now asks again after thirty seconds and stops asking after sixty, writes down what was still running, and opens the new version anyway. Every step goes into `logs/self-update.log` in the data folder, which, unlike `server.log`, survives the restart it is about.
+- [Fix] **Quitting Ascella is quicker.** The page left open in a browser held the stop for up to fifteen seconds; it now gets three, as in the other hall apps. The Mac launcher writes into the log how long a stop took.
+
 ## [0.3.2] - 2026-10-19
 
 - [Change] **Nothing, on purpose.** This version exists so that 0.3.1 has something to update itself to on a Mac. An updater that has never updated is a theory.

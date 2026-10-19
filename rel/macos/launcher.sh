@@ -103,12 +103,19 @@ echo "Starting $release ($url, data in $ASCELLA_DATA)"
 pid=$!
 
 stop_server() {
+  echo "Stopping: asked the server to stop"
   kill -TERM "$pid" 2>/dev/null || return 0
   i=0
   while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 20 ]; do
     sleep 1
     i=$((i + 1))
   done
+  # Said in the log, so that "it did not stop" comes with a number.
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "Stopping: still running after 20 seconds, killing it"
+  else
+    echo "Stopping: the server stopped after ${i} seconds"
+  fi
   kill -KILL "$pid" 2>/dev/null || true
 }
 
