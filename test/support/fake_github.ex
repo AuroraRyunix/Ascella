@@ -14,6 +14,32 @@ defmodule Ascella.FakeGitHub do
   end
 
   defp answer(%Plug.Conn{host: "api.github.com", request_path: path} = conn, releases) do
+    case Regex.run(~r{\A/repos/(.+)/releases\z}, path) do
+      [_, repo] -> history(conn, Map.get(releases, repo))
+      nil -> latest(conn, path, releases)
+    end
+  end
+
+  # The list of releases: `history: [%{version:, body:, draft:, prerelease:}]`
+  # on the repo's entry, newest first as GitHub sends it.
+  defp history(conn, %{history: history}) do
+    Req.Test.json(
+      conn,
+      for(
+        entry <- history,
+        do: %{
+          "tag_name" => "v" <> entry.version,
+          "body" => Map.get(entry, :body, ""),
+          "draft" => Map.get(entry, :draft, false),
+          "prerelease" => Map.get(entry, :prerelease, false)
+        }
+      )
+    )
+  end
+
+  defp history(conn, _none), do: send_resp(conn, 404, ~s({"message":"Not Found"}))
+
+  defp latest(conn, path, releases) do
     case Regex.run(~r{\A/repos/(.+)/releases/latest\z}, path) do
       [_, repo] ->
         case Map.get(releases, repo) do

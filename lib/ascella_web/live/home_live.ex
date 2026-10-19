@@ -6,8 +6,8 @@ defmodule AscellaWeb.HomeLive do
   """
   use AscellaWeb, :live_view
 
-  alias Ascella.{Apps, Context, Launchers, Updates}
-  alias AscellaWeb.{Logo, Words}
+  alias Ascella.{Apps, Context, Fetch, Launchers, Updates}
+  alias AscellaWeb.{Logo, ReleaseNotes, Words}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,6 +19,7 @@ defmodule AscellaWeb.HomeLive do
      |> assign(:removing, nil)
      |> assign(:confirm_data, nil)
      |> assign(:notes, %{})
+     |> assign(:whats_new, %{})
      |> load()}
   end
 
@@ -111,6 +112,26 @@ defmodule AscellaWeb.HomeLive do
     {:noreply, put_flash(socket, :info, gettext("Asking GitHub."))}
   end
 
+  # What's new: open asks GitHub for the notes in the background, a second
+  # press closes it. Nothing here is on the way of the update buttons.
+  def handle_event("whats_new", %{"id" => key}, socket) do
+    cond do
+      Map.has_key?(socket.assigns.whats_new, key) ->
+        {:noreply, update(socket, :whats_new, &Map.delete(&1, key))}
+
+      args = notes_args(socket, key) ->
+        {repo, installed, latest, github} = args
+
+        {:noreply,
+         socket
+         |> update(:whats_new, &Map.put(&1, key, :loading))
+         |> start_async({:notes, key}, fn -> Fetch.notes(repo, installed, latest, github) end)}
+
+      true ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("update_self", _params, socket) do
     case Apps.update_self() do
       :ok ->
@@ -127,6 +148,33 @@ defmodule AscellaWeb.HomeLive do
       {:error, reason} ->
         {:noreply, socket |> put_flash(:error, Words.reason(reason)) |> load()}
     end
+  end
+
+  @impl true
+  def handle_async({:notes, key}, result, socket) do
+    outcome =
+      case result do
+        {:ok, {:ok, notes}} -> {:ok, notes}
+        {:ok, {:error, reason}} -> {:error, reason}
+        {:exit, reason} -> {:error, {:offline, reason}}
+      end
+
+    # Closed in the meantime: nobody is waiting for the answer.
+    if Map.has_key?(socket.assigns.whats_new, key),
+      do: {:noreply, update(socket, :whats_new, &Map.put(&1, key, outcome))},
+      else: {:noreply, socket}
+  end
+
+  defp notes_args(socket, "ascella") do
+    own = socket.assigns.own
+    own && {Updates.repo(), Updates.current_version(), own.version, Context.current().github}
+  end
+
+  defp notes_args(socket, id) do
+    tile = Enum.find(socket.assigns.tiles, &(&1.app.id == id))
+
+    tile && tile.update? && tile.latest &&
+      {tile.app.repo, tile.version, tile.latest, Context.current().github}
   end
 
   defp remove(socket, id, delete_data?) do
@@ -237,21 +285,28 @@ defmodule AscellaWeb.HomeLive do
           </p>
 
           <p :if={@own.error} class="problem" id="own-error">{Words.error(@own.error)}</p>
+          <.whats_new key="ascella" state={@whats_new["ascella"]} />
         </div>
 
         <%= if @own.kind == :manual do %>
-          <a href={Updates.releases_page()} target="_blank" rel="noopener" class="btn btn-quiet">
-            {gettext("How to update")}
-          </a>
+          <div class="own-buttons">
+            <.whats_new_button key="ascella" open?={Map.has_key?(@whats_new, "ascella")} />
+            <a href={Updates.releases_page()} target="_blank" rel="noopener" class="btn btn-quiet">
+              {gettext("How to update")}
+            </a>
+          </div>
         <% else %>
-          <button
-            id="update-self"
-            class="btn btn-primary"
-            phx-click="update_self"
-            disabled={@own.busy? or @own.waiting?}
-          >
-            {if @own.busy?, do: gettext("Updating..."), else: gettext("Update Ascella")}
-          </button>
+          <div class="own-buttons">
+            <.whats_new_button key="ascella" open?={Map.has_key?(@whats_new, "ascella")} />
+            <button
+              id="update-self"
+              class="btn btn-primary"
+              phx-click="update_self"
+              disabled={@own.busy? or @own.waiting?}
+            >
+              {if @own.busy?, do: gettext("Updating..."), else: gettext("Update Ascella")}
+            </button>
+          </div>
         <% end %>
       </div>
 
@@ -486,6 +541,11 @@ defmodule AscellaWeb.HomeLive do
             <% end %>
           </div>
 
+          <.whats_new
+            :if={tile.update? and tile.state == :installed and !tile.busy}
+            key={tile.app.id}
+            state={@whats_new[tile.app.id]}
+          />
           <div class="tile-actions">
             <%= if tile.busy do %>
               <span class="busy" id={"busy-#{tile.app.id}"}>
@@ -504,6 +564,11 @@ defmodule AscellaWeb.HomeLive do
                 {gettext("Install")}
               </button>
 
+              <.whats_new_button
+                :if={tile.update? and tile.state == :installed}
+                key={tile.app.id}
+                open?={Map.has_key?(@whats_new, tile.app.id)}
+              />
               <button
                 :if={tile.update? and tile.state == :installed}
                 id={"update-#{tile.app.id}"}
@@ -574,6 +639,55 @@ defmodule AscellaWeb.HomeLive do
         </li>
       </ul>
     </Layouts.app>
+    """
+  end
+
+  attr :key, :string, required: true
+  attr :open?, :boolean, required: true
+
+  defp whats_new_button(assigns) do
+    ~H"""
+    <button
+      id={"whats-new-#{@key}"}
+      class="btn btn-quiet"
+      phx-click="whats_new"
+      phx-value-id={@key}
+      aria-expanded={to_string(@open?)}
+      aria-controls={"whats-new-panel-#{@key}"}
+    >
+      {gettext("What's new")}
+    </button>
+    """
+  end
+
+  attr :key, :string, required: true
+  attr :state, :any, default: nil
+
+  defp whats_new(assigns) do
+    ~H"""
+    <div :if={@state} id={"whats-new-panel-#{@key}"} class="whats-new">
+      <%= case @state do %>
+        <% :loading -> %>
+          <p class="busy" id={"whats-new-loading-#{@key}"}>
+            <span class="spinner" aria-hidden="true"></span> {gettext("Reading the release notes")}&hellip;
+          </p>
+        <% {:error, _reason} -> %>
+          <p class="problem" id={"whats-new-error-#{@key}"}>
+            {gettext(
+              "The release notes could not be fetched from GitHub. The update works without them."
+            )}
+          </p>
+        <% {:ok, []} -> %>
+          <p class="note" id={"whats-new-empty-#{@key}"}>
+            {gettext("GitHub has no notes for this update.")}
+          </p>
+        <% {:ok, releases} -> %>
+          <section :for={release <- releases} id={"whats-new-#{@key}-#{release.version}"}>
+            <h3>{release.version}</h3>
+            <ReleaseNotes.notes body={release.body} />
+          </section>
+      <% end %>
+    </div>
     """
   end
 

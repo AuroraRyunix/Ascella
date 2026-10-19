@@ -62,6 +62,111 @@ defmodule Ascella.Fetch do
     end
   end
 
+  @notes_each 6_000
+  @notes_all 30_000
+
+  @doc """
+  What changed between the installed version and the latest: the notes (the
+  release body, which is its CHANGELOG section) of every published release
+  after `installed` and up to `latest`, newest first, as `[%{version, body}]`.
+  With nothing installed (`installed` is `nil`) it is the latest's notes
+  alone. Drafts, pre-releases and tags that are not `X.Y.Z` are skipped.
+
+  Each body is cut at #{@notes_each} characters and the lot at #{@notes_all}
+  (later versions are dropped first, oldest last), so a changelog with a
+  long memory cannot fill the page. `{:error, reason}` as in `latest/2`.
+  """
+  def notes(repo, installed, latest, req_options \\ []) do
+    request =
+      [
+        url: "#{@api}/repos/#{repo}/releases",
+        params: [per_page: 30],
+        headers: [{"accept", "application/vnd.github+json"}, {"user-agent", @user_agent}],
+        receive_timeout: 15_000,
+        retry: false
+      ]
+      |> Keyword.merge(req_options)
+
+    case Req.get(Req.new(request)) do
+      {:ok, %Req.Response{status: 200, body: releases}} when is_list(releases) ->
+        {:ok, select_notes(releases, parse_version(installed), parse_version(latest))}
+
+      {:ok, %Req.Response{status: 200}} ->
+        {:error, :unreadable_release}
+
+      {:ok, %Req.Response{status: 404}} ->
+        {:error, :no_release}
+
+      {:ok, %Req.Response{status: status}} ->
+        {:error, {:http, status}}
+
+      {:error, reason} ->
+        {:error, {:offline, reason}}
+    end
+  end
+
+  defp parse_version(nil), do: nil
+
+  defp parse_version(text) do
+    case Version.parse(String.trim_leading(to_string(text), "v")) do
+      {:ok, version} -> version
+      :error -> nil
+    end
+  end
+
+  defp select_notes(_releases, _installed, nil), do: []
+
+  defp select_notes(releases, installed, latest) do
+    releases
+    |> Enum.flat_map(&note_of/1)
+    |> Enum.filter(fn {version, _body} ->
+      Version.compare(version, latest) != :gt and
+        (installed == nil or Version.compare(version, installed) == :gt)
+    end)
+    |> then(fn found ->
+      if installed == nil,
+        do: Enum.filter(found, fn {version, _} -> Version.compare(version, latest) == :eq end),
+        else: found
+    end)
+    |> Enum.uniq_by(fn {version, _body} -> to_string(version) end)
+    |> Enum.sort(fn {a, _}, {b, _} -> Version.compare(a, b) != :lt end)
+    |> Enum.map(fn {version, body} -> %{version: to_string(version), body: body} end)
+    |> cap_notes()
+  end
+
+  defp note_of(%{"tag_name" => tag, "draft" => false, "prerelease" => false} = release)
+       when is_binary(tag) do
+    with true <- tag =~ ~r/\Av?[0-9]+\.[0-9]+\.[0-9]+\z/,
+         {:ok, version} <- Version.parse(String.trim_leading(tag, "v")) do
+      body = if is_binary(release["body"]), do: String.trim(release["body"]), else: ""
+      [{version, cut(body, @notes_each)}]
+    else
+      _unusable -> []
+    end
+  end
+
+  defp note_of(_other), do: []
+
+  defp cut(text, max) do
+    if String.length(text) > max,
+      do: String.slice(text, 0, max) <> "
+
+...",
+      else: text
+  end
+
+  defp cap_notes(notes) do
+    {kept, _left} =
+      Enum.flat_map_reduce(notes, @notes_all, fn %{body: body} = note, left ->
+        cond do
+          left <= 0 -> {:halt, left}
+          true -> {[note], left - String.length(body)}
+        end
+      end)
+
+    kept
+  end
+
   defp read_release(tag, release) do
     with false <- release["draft"] == true or release["prerelease"] == true,
          tag when is_binary(tag) <- tag,

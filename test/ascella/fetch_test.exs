@@ -72,6 +72,62 @@ defmodule Ascella.FetchTest do
     assert {:error, :no_release} = Fetch.latest("Example/Nothing", @opts)
   end
 
+  describe "notes/4" do
+    defp history(entries),
+      do: FakeGitHub.serve(%{"Example/App" => %{version: "0.0.0", history: entries}})
+
+    defp entry(version, extra \\ %{}),
+      do: Map.merge(%{version: version, body: "- [Fix] **Thing #{version}.** Done."}, extra)
+
+    test "every release after the installed one, up to the latest, newest first" do
+      history([entry("0.4.5"), entry("0.4.4"), entry("0.4.3"), entry("0.4.2"), entry("0.4.1")])
+
+      assert {:ok, [%{version: "0.4.4", body: body}, %{version: "0.4.3"}, %{version: "0.4.2"}]} =
+               Fetch.notes("Example/App", "0.4.1", "0.4.4", @opts)
+
+      assert body =~ "Thing 0.4.4"
+    end
+
+    test "drafts and pre-releases are left out" do
+      history([
+        entry("0.4.4", %{draft: true}),
+        entry("0.4.3", %{prerelease: true}),
+        entry("0.4.2")
+      ])
+
+      assert {:ok, [%{version: "0.4.2"}]} = Fetch.notes("Example/App", "0.4.0", "0.4.4", @opts)
+    end
+
+    test "not installed: the latest's notes alone" do
+      history([entry("0.4.4"), entry("0.4.3")])
+      assert {:ok, [%{version: "0.4.4"}]} = Fetch.notes("Example/App", nil, "0.4.4", @opts)
+    end
+
+    test "versions compare as versions, not as text" do
+      history([entry("0.10.0"), entry("0.9.0"), entry("0.2.0")])
+
+      assert {:ok, [%{version: "0.10.0"}, %{version: "0.9.0"}]} =
+               Fetch.notes("Example/App", "0.2.0", "0.10.0", @opts)
+    end
+
+    test "long notes are cut" do
+      history([entry("0.4.4", %{body: String.duplicate("x", 20_000)})])
+      assert {:ok, [%{body: body}]} = Fetch.notes("Example/App", "0.4.0", "0.4.4", @opts)
+      assert String.length(body) < 6_100
+    end
+
+    test "errors are told, not raised" do
+      FakeGitHub.serve(%{})
+      assert {:error, :no_release} = Fetch.notes("Example/App", "0.4.0", "0.4.4", @opts)
+
+      Req.Test.stub(Ascella.GitHub, &Plug.Conn.send_resp(&1, 500, ""))
+      assert {:error, {:http, 500}} = Fetch.notes("Example/App", "0.4.0", "0.4.4", @opts)
+
+      Req.Test.stub(Ascella.GitHub, &Req.Test.transport_error(&1, :econnrefused))
+      assert {:error, {:offline, _}} = Fetch.notes("Example/App", "0.4.0", "0.4.4", @opts)
+    end
+  end
+
   test "both of sha256sum's formats are read" do
     a = String.duplicate("a", 64)
     b = String.duplicate("B", 64)
