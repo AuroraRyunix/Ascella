@@ -19,6 +19,10 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-19
+
+- [Change] **Nothing, on purpose.** This version exists so that 0.3.1 has something to update itself to on a Mac. An updater that has never updated is a theory.
+
 ## [0.3.1] - 2026-10-19
 
 - [Feature] **Ascella updates itself on a Mac.** It used to be the one program on the page that could not update itself on a Mac, which is the cobbler's children again. The page now says "Ascella X.Y.Z, update available" with a button; the zip is checked against the release's checksums like every other download, unpacked beside the running app, and swapped in with one previous copy kept. A helper then opens the new Ascella, and puts the old one back if the new one does not answer within 45 seconds, saying so on the page. If `Ascella.app` is somewhere it cannot be replaced (Downloads, a folder that wants an administrator), nothing is attempted and the page says where it is and to move it to /Applications. The first Ascella from a browser still needs to be allowed once; that is Gatekeeper's rule and not ours.
