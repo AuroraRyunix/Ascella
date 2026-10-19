@@ -101,6 +101,7 @@ defmodule Ascella.SelfUpdateTest do
       FakeRunner.reset()
 
       opts = [
+        arch: "aarch64",
         bundle: bundle,
         launcher_pid: "4242",
         port: 4090,
@@ -208,6 +209,29 @@ defmodule Ascella.SelfUpdateTest do
 
       # Then, and only then, the quit.
       assert_received {:ran, "kill", ["-TERM", "4242"]}
+    end
+
+    test "an Intel Mac downloads the x86_64 zip, and an Apple Silicon one never does", c do
+      zip = release_zip("0.4.0", "intel")
+
+      FakeGitHub.serve(%{
+        "teapot-chess/Ascella" => %{
+          version: "0.4.0",
+          files: %{"ascella-macos-x86_64.zip" => zip}
+        }
+      })
+
+      script(self())
+
+      assert :ok =
+               Mac.apply(%{version: "0.4.0", tag: "v0.4.0"}, c.ctx, [{:arch, "x86_64"} | c.opts])
+
+      assert File.read!(Path.join(c.bundle, "Contents/MacOS/Ascella")) == "intel"
+    end
+
+    test "which asset is chosen is decided by the machine's architecture" do
+      assert Mac.asset("aarch64") == "ascella-macos-aarch64.zip"
+      assert Mac.asset("x86_64") == "ascella-macos-x86_64.zip"
     end
 
     test "a second update replaces the kept copy, never adds a second one", c do

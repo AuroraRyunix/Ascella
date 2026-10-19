@@ -42,7 +42,11 @@ defmodule Ascella.SelfUpdate.Mac do
   alias Ascella.{CleanStart, Fetch, Fs, Installer, Runner, Updates}
   alias Ascella.Installer.MacApp
 
-  @asset "ascella-macos-aarch64.zip"
+  # One zip per kind of Mac; `asset/1` picks (Ascella.Platform).
+  @assets %{
+    "aarch64" => "ascella-macos-aarch64.zip",
+    "x86_64" => "ascella-macos-x86_64.zip"
+  }
   @bundle_name "Ascella.app"
 
   # $1 launcher pid  $2 bundle  $3 previous  $4 port  $5 status file
@@ -140,8 +144,11 @@ defmodule Ascella.SelfUpdate.Mac do
   @doc "The helper's script, as run by `/bin/sh -c`."
   def helper_script, do: @helper
 
-  @doc "The release asset this replaces the app with."
-  def asset, do: @asset
+  @doc "The release assets, by architecture."
+  def assets, do: @assets
+
+  @doc "The release asset this replaces the app with, for this machine (or the given architecture)."
+  def asset(arch \\ Ascella.Platform.arch()), do: Map.fetch!(@assets, arch)
 
   @doc "Where the running `Ascella.app` is, or nil when this copy is not inside one."
   def bundle_path do
@@ -192,6 +199,8 @@ defmodule Ascella.SelfUpdate.Mac do
   def apply(%{version: version, tag: tag}, ctx, opts \\ []) do
     bundle = Keyword.get_lazy(opts, :bundle, &bundle_path/0)
 
+    asset = asset(opts[:arch] || Ascella.Platform.arch())
+
     with true <- is_binary(bundle) || {:error, :not_a_bundle},
          true <- writable?(bundle) || {:error, {:not_writable, bundle}},
          {:ok, launcher} <- launcher_pid(bundle, ctx, opts),
@@ -199,7 +208,7 @@ defmodule Ascella.SelfUpdate.Mac do
            Fetch.download(
              Updates.repo(),
              tag,
-             @asset,
+             asset,
              Path.join([ctx.downloads, "ascella", version]),
              ctx.github
            ),

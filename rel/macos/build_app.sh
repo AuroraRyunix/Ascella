@@ -16,10 +16,13 @@
 #   Ascella.app/Contents/Resources/Ascella.icns   from rel/macos/Ascella-icon.png
 #
 # The executable is a small AppKit program (the Dock icon and the window)
-# compiled here with swiftc for arm64 and macOS 11; launcher.sh beside the
-# release is the part that starts and stops the server. A Swift program on
-# macOS 11 and newer links to /usr/lib/swift and the system frameworks
-# only, which the check below allows like any other system library.
+# compiled here with swiftc for the architecture of this Mac and for
+# MACOSX_DEPLOYMENT_TARGET (11.0 if unset: the Apple Silicon build); launcher.sh
+# beside the release is the part that starts and stops the server. A Swift
+# program on macOS 10.15 and newer links to /usr/lib/swift and the system
+# frameworks only, which the check below allows like any other system
+# library. Before 10.14.4 the system has no Swift runtime at all, so a target
+# below 10.15 gets the standard library linked in (-static-stdlib).
 #
 # Checked here, because nothing after this would notice until somebody's Mac
 # refused to start the program:
@@ -31,7 +34,7 @@
 #   * every Mach-O file links only to the system (/usr/lib, /System) or to
 #     itself. The runner has Homebrew; the arbiter's Mac does not;
 #   * the oldest macOS every Mach-O file accepts (`minos`). Any file that
-#     wants newer than 11.0 fails the build, by name; otherwise the newest
+#     wants newer than the target fails the build, by name; otherwise the newest
 #     of them goes into LSMinimumSystemVersion and the log.
 
 set -eu
@@ -39,6 +42,16 @@ set -eu
 payload=${1:?usage: build_app.sh <release dir> <output dir>}
 out=${2:?usage: build_app.sh <release dir> <output dir>}
 here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+supported=${MACOSX_DEPLOYMENT_TARGET:-11.0}
+case "$(uname -m)" in
+  arm64) swift_arch=arm64 ;;
+  x86_64) swift_arch=x86_64 ;;
+  *) echo "::error::build_app.sh: unknown machine $(uname -m)" >&2; exit 1 ;;
+esac
+case "$supported" in
+  10.1[0-4] | 10.1[0-4].*) swift_extra="-static-stdlib" ;;
+  *) swift_extra="" ;;
+esac
 
 [ -x "$payload/bin/ascella" ] || {
   echo "::error::$payload is not an Ascella release (no bin/ascella)" >&2
@@ -71,7 +84,8 @@ chmod 755 "$app/Contents/Resources/launcher.sh"
 # the first compile of this file happens here, on a Mac nobody sits at.
 swift_source="${here#"$PWD"/}/Launcher.swift"
 swift_log=$(mktemp)
-if ! xcrun swiftc -O -swift-version 5 -target arm64-apple-macos11 -framework AppKit \
+# shellcheck disable=SC2086 # swift_extra is empty or one flag
+if ! xcrun swiftc -O -swift-version 5 -target "$swift_arch-apple-macos$supported" $swift_extra -framework AppKit \
   -o "$app/Contents/MacOS/Ascella" "$swift_source" >"$swift_log" 2>&1; then
   sed -n 's/^\(.*\.swift\):\([0-9][0-9]*\):\([0-9][0-9]*\): error: \(.*\)$/::error file=\1,line=\2,col=\3::\4/p' "$swift_log"
   echo "swiftc failed on $swift_source; everything it said:"
@@ -115,14 +129,14 @@ newer() {
     [ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)" = "$1" ]
 }
 
-# Links and minimum system, per Mach-O file. `supported` is the promise:
-# the launcher is compiled for it above, and the runtime and the NIFs are
-# built for it in the workflow. A file that asks for more is a build that
+# Links and minimum system, per Mach-O file. `supported` is the promise
+# (MACOSX_DEPLOYMENT_TARGET, above): the launcher is compiled for it, and
+# the runtime and the NIFs are built for it in the workflow. A file that
+# asks for more is a build that
 # fails here, by name - not an app that tells a Mac on 14 "You can't use
 # this version of the application", which is how the 15.0 of the
 # ready-made Erlang got out the first time, unnoticed by anyone with a
 # Mac new enough not to care.
-supported=11.0
 bad=0
 minimum=$supported
 too_new=$(mktemp)

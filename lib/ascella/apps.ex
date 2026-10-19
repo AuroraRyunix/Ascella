@@ -250,6 +250,7 @@ defmodule Ascella.Apps do
     %{
       app: app,
       build?: build?,
+      intel_mac?: ctx.target == "macos-x86_64",
       state: status.state,
       version: status.version,
       previous: status.previous,

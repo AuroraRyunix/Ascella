@@ -311,7 +311,13 @@ defmodule AscellaWeb.HomeLive do
             </div>
           </dl>
 
-          <p :if={not tile.build?} class="note">{gettext("No build for this computer.")}</p>
+          <p :if={not tile.build?} class="note">
+            <%= if tile.intel_mac? do %>
+              {gettext("No build for Intel Macs yet.")}
+            <% else %>
+              {gettext("No build for this computer.")}
+            <% end %>
+          </p>
 
           <p :if={tile.state == :per_machine} class="note">
             {gettext("Installed for everyone on this PC; updated with its .msi.")}

@@ -152,7 +152,13 @@ defmodule AscellaWeb.Words do
   def reason(:not_supported), do: gettext("Going back is not possible for this kind of install.")
   def reason(:already_installed), do: gettext("That version is already installed.")
   def reason(:absent), do: gettext("It is not installed.")
-  def reason(:no_build), do: gettext("There is no build for this computer.")
+
+  def reason(:no_build) do
+    if Ascella.Context.current().target == "macos-x86_64",
+      do: gettext("There is no build for Intel Macs yet."),
+      else: gettext("There is no build for this computer.")
+  end
+
   def reason(:no_local_app_data), do: gettext("Windows did not say where LOCALAPPDATA is.")
 
   def reason({:wrong_version, _found, _wanted}),

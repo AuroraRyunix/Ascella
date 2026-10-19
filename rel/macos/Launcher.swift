@@ -160,7 +160,14 @@ final class DetailsWindow: NSObject, NSWindowDelegate {
     var logSeenSize: UInt64 = UInt64.max
 
     let statsFont = NSFont.systemFont(ofSize: 12)
-    let logFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+    // monospacedSystemFont is macOS 10.15; the Intel build reaches back to
+    // 10.13, where Menlo has been the terminal's font all along.
+    let logFont: NSFont = {
+        if #available(macOS 10.15, *) {
+            return NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        }
+        return NSFont(name: "Menlo", size: 11) ?? NSFont.userFixedPitchFont(ofSize: 11) ?? NSFont.systemFont(ofSize: 11)
+    }()
 
     init(session: URLSession, token: String, logPath: String) {
         self.session = session
