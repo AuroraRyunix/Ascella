@@ -36,7 +36,7 @@ prefix=${1:?usage: build_otp.sh <prefix>}
 : "${OTP_VERSION:?set OTP_VERSION}"
 : "${OPENSSL_VERSION:?set OPENSSL_VERSION}"
 : "${ELIXIR_VERSION:?set ELIXIR_VERSION}"
-: "${MACOSX_DEPLOYMENT_TARGET:?set MACOSX_DEPLOYMENT_TARGET (11.0 or the Intel build's)}"
+: "${MACOSX_DEPLOYMENT_TARGET:?set MACOSX_DEPLOYMENT_TARGET (11.0, or lower for the Intel build)}"
 export MACOSX_DEPLOYMENT_TARGET
 
 # SHA-256 of the exact files, as GitHub lists them on each release page.
