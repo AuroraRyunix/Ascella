@@ -19,6 +19,12 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Feature] **Ascella for Intel Macs, from macOS 10.13.** macOS 10 exists only on Intel Macs, and Intel Macs had been struck off on the 14th because their build cost thirteen minutes on every push. It is back, and it is built only when there is a release to put it in (or when somebody starts the workflow by hand), so the other pushes are as quick as they were. Ascella chooses the zip for the Mac it is on, for its own updates and for everything it installs; an Intel Ascella running under Rosetta on an Apple Silicon Mac is still treated as the Apple Silicon Mac it is. Every program in the bundle is checked against the oldest macOS promised, as before.
+- [Change] **Programs with no Intel build say so.** Until the other programs publish an Intel zip, an Intel Mac sees "No build for Intel Macs yet" on their tiles, instead of being handed the Apple Silicon zip, which would have opened as damaged and explained nothing. Adding one later is a line in `priv/catalogue.json`.
+
+- [Fix] **A self-update no longer waits forever for the old Ascella to leave.** On a real Mac the old copy was asked to quit, did not, and two minutes later the update gave up with the new version sitting unopened in Applications. The helper now asks again after thirty seconds and stops asking after sixty, writes down what was still running, and opens the new version anyway. Every step goes into `logs/self-update.log` in the data folder, which, unlike `server.log`, survives the restart it is about.
+- [Fix] **Quitting Ascella is quicker.** The page left open in a browser held the stop for up to fifteen seconds; it now gets three, as in the other hall apps. The Mac launcher writes into the log how long a stop took.
+
 ## [0.3.2] - 2026-10-19
 
 - [Change] **Nothing, on purpose.** This version exists so that 0.3.1 has something to update itself to on a Mac. An updater that has never updated is a theory.

@@ -101,6 +101,7 @@ defmodule Ascella.SelfUpdateTest do
       FakeRunner.reset()
 
       opts = [
+        arch: "aarch64",
         bundle: bundle,
         launcher_pid: "4242",
         port: 4090,
@@ -196,16 +197,41 @@ defmodule Ascella.SelfUpdateTest do
                "/fake/pgrep",
                "7",
                "0.4.0",
-               "1"
+               "1",
+               log
              ] =
                Enum.drop_while(words, &(&1 =~ ~r/\A[A-Z_]+=/))
 
       assert script == Mac.helper_script()
       assert bundle == c.bundle
       assert status == c.opts[:status_file]
+      assert log == Ascella.Updates.log_file()
 
       # Then, and only then, the quit.
       assert_received {:ran, "kill", ["-TERM", "4242"]}
+    end
+
+    test "an Intel Mac downloads the x86_64 zip, and an Apple Silicon one never does", c do
+      zip = release_zip("0.4.0", "intel")
+
+      FakeGitHub.serve(%{
+        "teapot-chess/Ascella" => %{
+          version: "0.4.0",
+          files: %{"ascella-macos-x86_64.zip" => zip}
+        }
+      })
+
+      script(self())
+
+      assert :ok =
+               Mac.apply(%{version: "0.4.0", tag: "v0.4.0"}, c.ctx, [{:arch, "x86_64"} | c.opts])
+
+      assert File.read!(Path.join(c.bundle, "Contents/MacOS/Ascella")) == "intel"
+    end
+
+    test "which asset is chosen is decided by the machine's architecture" do
+      assert Mac.asset("aarch64") == "ascella-macos-aarch64.zip"
+      assert Mac.asset("x86_64") == "ascella-macos-x86_64.zip"
     end
 
     test "a second update replaces the kept copy, never adds a second one", c do
@@ -349,6 +375,7 @@ defmodule Ascella.SelfUpdateTest do
       opened = Path.join(tmp, "opened")
       answer = Path.join(tmp, "answer")
       status = Path.join(tmp, "status")
+      log = Path.join(tmp, "logs/self-update.log")
 
       fake(tmp, "open", "echo \"$1 $(cat '#{bundle}/who' 2>/dev/null)\" >> '#{opened}'
 ")
@@ -357,7 +384,13 @@ defmodule Ascella.SelfUpdateTest do
       fake(tmp, "pgrep", "exit 1\n")
 
       {:ok,
-       sh: sh, bundle: bundle, previous: previous, opened: opened, answer: answer, status: status}
+       sh: sh,
+       bundle: bundle,
+       previous: previous,
+       opened: opened,
+       answer: answer,
+       status: status,
+       log: log}
     end
 
     defp fake(tmp, name, body) do
@@ -383,7 +416,8 @@ defmodule Ascella.SelfUpdateTest do
         Path.join(c.tmp, "fake-pgrep"),
         to_string(seconds),
         "0.4.0",
-        "0.1"
+        "0.1",
+        c.log
       ]
 
       assert {_, 0} = System.cmd(c.sh, args, stderr_to_stdout: true)
@@ -427,6 +461,59 @@ defmodule Ascella.SelfUpdateTest do
       refute File.exists?(c.bundle <> ".failed")
       # Opened twice: the new one, which did not answer, then the old one.
       assert File.read!(c.opened) == "#{c.bundle} new\n#{c.bundle} old\n"
+    end
+
+    # A launcher that ignores SIGTERM, as the old one did on a real Mac: the
+    # helper asks twice, then kills it, and the update still finishes. Needs
+    # real Unix pids, which Git Bash on Windows does not share with the BEAM.
+    @tag skip: match?({:win32, _}, :os.type()) && "needs Unix process ids"
+    test "an old Ascella that will not quit is killed, and the new one opened", c do
+      File.write!(c.answer, "")
+
+      port =
+        Port.open({:spawn_executable, c.sh}, [
+          :binary,
+          args: ["-c", "trap '' TERM; exec sleep 300"]
+        ])
+
+      {:os_pid, stubborn} = Port.info(port, :os_pid)
+
+      args = [
+        "-c",
+        Mac.helper_script(),
+        "sh",
+        to_string(stubborn),
+        c.bundle,
+        c.previous,
+        "4090",
+        c.status,
+        Path.join(c.tmp, "fake-open"),
+        Path.join(c.tmp, "fake-curl"),
+        Path.join(c.tmp, "fake-pgrep"),
+        "5",
+        "0.4.0",
+        "0.02",
+        c.log
+      ]
+
+      assert {_, 0} = System.cmd(c.sh, args, stderr_to_stdout: true)
+      assert wait_for(c.status) == "ok 0.4.0"
+      assert File.read!(c.opened) == "#{c.bundle} new\n"
+
+      log = File.read!(c.log)
+      assert log =~ "asking it again"
+      assert log =~ "killing it"
+      assert log =~ "0.4.0 answers; done"
+    end
+
+    test "the helper keeps a log of what it did", c do
+      File.write!(c.answer, "")
+      run_helper(c, 5)
+
+      assert wait_for(c.status) == "ok 0.4.0"
+      log = File.read!(c.log)
+      assert log =~ "waiting for the old Ascella"
+      assert log =~ "the old Ascella is gone"
     end
 
     test "the script is plain sh: it parses", c do

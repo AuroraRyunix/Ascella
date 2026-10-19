@@ -34,6 +34,15 @@ defmodule Ascella.ReleaseFilesTest do
     |> Enum.reject(&String.contains?(&1, "/obj/"))
   end
 
+  test "a stop does not wait fifteen seconds for an open page, and says how it went" do
+    http = Application.fetch_env!(:ascella, AscellaWeb.Endpoint)[:http]
+    assert http[:thousand_island_options][:shutdown_timeout] <= 3_000
+
+    sh = File.read!(Path.expand("../../rel/macos/launcher.sh", __DIR__))
+    assert sh =~ "Stopping: the server stopped after"
+    assert sh =~ "Stopping: still running after 20 seconds"
+  end
+
   describe "the workflows" do
     test "every action is pinned to a commit, with the version beside it" do
       for file <- ~w(.github/workflows/ci.yml .github/workflows/release.yml),
@@ -67,7 +76,7 @@ defmodule Ascella.ReleaseFilesTest do
       # release must hold.
       for name <- ~w(Ascella-Setup.exe ascella-windows-x86_64-portable.zip
                      ascella-linux-x86_64.tar.gz ascella-linux-aarch64.tar.gz
-                     ascella-macos-aarch64.zip releases.win.json) do
+                     ascella-macos-aarch64.zip ascella-macos-x86_64.zip releases.win.json) do
         assert workflow =~ ~r/^\s+#{Regex.escape(name)}\b/m,
                "release.yml does not require #{name}"
       end
@@ -94,20 +103,43 @@ defmodule Ascella.ReleaseFilesTest do
 
     test "the Linux archives are built where a Raspberry Pi can run them" do
       workflow = read(".github/workflows/release.yml")
-      assert workflow =~ "runner: ubuntu-22.04, target: linux-x86_64"
-      assert workflow =~ "runner: ubuntu-22.04-arm, target: linux-aarch64"
-      assert workflow =~ "runner: windows-latest, target: windows-x86_64"
+      assert workflow =~ ~s("runner":"ubuntu-22.04","target":"linux-x86_64")
+      assert workflow =~ ~s("runner":"ubuntu-22.04-arm","target":"linux-aarch64")
+      assert workflow =~ ~s("runner":"windows-latest","target":"windows-x86_64")
       # ...and install.sh refuses, in words, a system older than that.
       assert read("rel/linux/install.sh") =~ ~s([ "$minor" -lt 35 ])
     end
 
     test "the Mac app is built on the Macs whose names the release gives it" do
       workflow = read(".github/workflows/release.yml")
-      assert workflow =~ "runner: macos-15, target: macos-aarch64"
-      refute workflow =~ "macos-15-intel"
+      assert workflow =~ ~s("runner":"macos-15","target":"macos-aarch64","macos_min":"11.0")
+      assert workflow =~ ~s("runner":"macos-15-intel","target":"macos-x86_64","macos_min":")
       assert workflow =~ ~s(dist/ascella-${{ matrix.target }}.zip)
       # Signing is there, and cannot run without its secret.
       assert workflow =~ "if: runner.os == 'macOS' && steps.apple.outputs.sign == 'true'"
+    end
+
+    test "the Intel Mac build runs for a release and for a person, never for a plain push" do
+      workflow = read(".github/workflows/release.yml")
+
+      # Added to the matrix by the plan job, under one condition, and the
+      # condition is the release's own (or a hand-started run).
+      assert workflow =~
+               ~s(if [ "$PUBLISH" = true ] || [ "$EVENT" = workflow_dispatch ]; then)
+
+      assert workflow =~ "include: ${{ fromJSON(needs.plan.outputs.matrix) }}"
+
+      [before, after_if] =
+        String.split(workflow, ~s(if [ "$PUBLISH" = true ]), parts: 2)
+
+      assert after_if =~ "macos-15-intel"
+      # ...and not before it, where the permanent targets are listed.
+      refute before =~ ~s("runner":"macos-15-intel")
+
+      # What publishes needs the plan, and its decision is the plan's.
+      assert workflow =~ "needs: [plan, build]"
+      assert workflow =~ "needs.plan.outputs.publish == 'true'"
+      refute workflow =~ "steps.ver.outputs.publish == 'true'"
     end
 
     test "CI builds the Windows launcher, and nothing serial anywhere" do
@@ -119,7 +151,7 @@ defmodule Ascella.ReleaseFilesTest do
   end
 
   describe "the Mac runtime" do
-    test "is built for macOS 11, and a build that is not fails" do
+    test "is built for the target's macOS, and a build that is not fails" do
       workflow = read(".github/workflows/release.yml")
       build_otp = read("rel/macos/build_otp.sh")
       build_app = read("rel/macos/build_app.sh")
@@ -127,7 +159,10 @@ defmodule Ascella.ReleaseFilesTest do
       # The ready-made Erlang for macOS said "15.0"; it is not used there.
       assert workflow =~ "if: runner.os != 'macOS'"
       assert workflow =~ ~s(sh rel/macos/build_otp.sh "$HOME/otp-macos")
-      assert workflow =~ ~s(echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> "$GITHUB_ENV")
+
+      assert workflow =~
+               ~s(echo "MACOSX_DEPLOYMENT_TARGET=${{ matrix.macos_min }}" >> "$GITHUB_ENV")
+
       assert workflow =~ "steps.otp-cache.outputs.cache-hit != 'true'"
       # No SQLite here, so nothing to force-build for it.
       refute workflow =~ "EXQLITE"
@@ -155,8 +190,15 @@ defmodule Ascella.ReleaseFilesTest do
 
       assert Regex.match?(~r/_build\/prod\/lib\n\s+key:.*env\.MACOSX_DEPLOYMENT_TARGET/, workflow)
 
-      # A binary that wants newer than macOS 11 fails the build, by name.
-      assert build_app =~ "supported=11.0"
+      # A binary that wants newer than the target fails the build, by name.
+      assert build_app =~ "supported=${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+      assert build_app =~ ~s(-target "$swift_arch-apple-macos$supported")
+      assert build_otp =~ "darwin64-x86_64-cc"
+      assert build_otp =~ "darwin64-arm64-cc"
+
+      # The smoke test prints and checks what the bundle promises.
+      assert workflow =~ "LSMinimumSystemVersion is not ${{ matrix.macos_min }}"
+      assert workflow =~ "vtool -show-build"
       assert build_app =~ ~s(newer "$minos" "$supported")
       assert build_app =~ ~s(sed 's/^/  /' "$too_new")
     end
@@ -256,7 +298,7 @@ defmodule Ascella.ReleaseFilesTest do
       build = read("rel/macos/build_app.sh")
       assert plist =~ ~r{<key>CFBundleExecutable</key>\s*<string>Ascella</string>}
       assert build =~ ~s(-o "$app/Contents/MacOS/Ascella" "$swift_source")
-      assert build =~ "-target arm64-apple-macos11"
+      assert build =~ ~s(-target "$swift_arch-apple-macos$supported")
       assert build =~ ~s(cp "$here/launcher.sh" "$app/Contents/Resources/launcher.sh")
       assert build =~ "logo=rel/macos/Ascella-icon.png"
     end
@@ -445,9 +487,10 @@ defmodule Ascella.ReleaseFilesTest do
       assert read("lib/ascella/self_update/mac.ex") =~ "ASCELLA_LAUNCHER_PID"
     end
 
-    test "the asset the updater unpacks is the one the release workflow publishes" do
-      asset = Ascella.SelfUpdate.Mac.asset()
-      assert read(".github/workflows/release.yml") =~ asset
+    test "the assets the updater unpacks are the ones the release workflow publishes" do
+      for {_arch, asset} <- Ascella.SelfUpdate.Mac.assets() do
+        assert read(".github/workflows/release.yml") =~ asset
+      end
     end
   end
 end

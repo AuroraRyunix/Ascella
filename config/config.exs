@@ -18,6 +18,9 @@ config :ascella,
 config :ascella, AscellaWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
+  # At a stop, the page left open in a browser gets three seconds to go,
+  # not Bandit's fifteen: a self-update waits for this copy to be gone.
+  http: [thousand_island_options: [shutdown_timeout: 3_000]],
   render_errors: [
     formats: [html: AscellaWeb.ErrorHTML, json: AscellaWeb.ErrorJSON],
     layout: false

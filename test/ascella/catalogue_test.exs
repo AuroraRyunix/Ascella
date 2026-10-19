@@ -37,6 +37,47 @@ defmodule Ascella.CatalogueTest do
     end
   end
 
+  test "an Intel Mac has a build only where the catalogue says the app publishes one" do
+    # Today, none: the shipped catalogue names no Intel build, and Ascella
+    # says so instead of offering the Apple Silicon zip.
+    for app <- Catalogue.load!(Application.app_dir(:ascella, "priv/catalogue.json")) do
+      assert Catalogue.spec(app, "macos-aarch64") || app.id == "openpairings",
+             "#{app.id} lost its Apple Silicon build"
+
+      assert Catalogue.spec(app, "macos-x86_64") == nil, "#{app.id}: an Intel build nobody made"
+    end
+
+    # One flag for a hall app, and the asset name is derived.
+    assert [app] = parse([entry(%{"macos_x86_64" => true})])
+
+    assert %{method: :mac_app, asset: "polis-macos-x86_64.zip", bundle: "Polis.app"} =
+             Catalogue.spec(app, "macos-x86_64")
+
+    assert [off] = parse([entry(%{"macos_x86_64" => false})])
+    assert Catalogue.spec(off, "macos-x86_64") == nil
+
+    assert_raise ArgumentError, ~r/macos_x86_64 is true or false/, fn ->
+      parse([entry(%{"macos_x86_64" => "yes"})])
+    end
+
+    # Any other app writes the platform out, once.
+    assert [custom] =
+             parse([
+               entry(%{
+                 "layout" => nil,
+                 "platforms" => %{
+                   "macos-x86_64" => %{
+                     "method" => "mac_app",
+                     "asset" => "polis_intel.zip",
+                     "bundle" => "Polis.app"
+                   }
+                 }
+               })
+             ])
+
+    assert %{asset: "polis_intel.zip"} = Catalogue.spec(custom, "macos-x86_64")
+  end
+
   test "the shipped catalogue loads, with a mark on disk for every app" do
     apps = Catalogue.load!(Application.app_dir(:ascella, "priv/catalogue.json"))
     assert Enum.map(apps, & &1.id) == ~w(openpairings alnasl arkab polis nunki)

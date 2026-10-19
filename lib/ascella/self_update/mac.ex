@@ -42,34 +42,72 @@ defmodule Ascella.SelfUpdate.Mac do
   alias Ascella.{CleanStart, Fetch, Fs, Installer, Runner, Updates}
   alias Ascella.Installer.MacApp
 
-  @asset "ascella-macos-aarch64.zip"
+  # One zip per kind of Mac; `asset/1` picks (Ascella.Platform).
+  @assets %{
+    "aarch64" => "ascella-macos-aarch64.zip",
+    "x86_64" => "ascella-macos-x86_64.zip"
+  }
   @bundle_name "Ascella.app"
 
   # $1 launcher pid  $2 bundle  $3 previous  $4 port  $5 status file
   # $6 open  $7 curl  $8 pgrep  $9 seconds to wait for an answer
-  # $10 version  $11 tick (seconds, 1 in real life)
+  # $10 version  $11 tick (seconds, 1 in real life)  $12 log file
   @helper ~S"""
   launcher=$1; bundle=$2; previous=$3; port=$4; status=$5
-  open=$6; curl=$7; pgrep=$8; secs=$9; version=${10}; tick=${11}
+  open=$6; curl=$7; pgrep=$8; secs=$9; version=${10}; tick=${11}; log=${12}
 
   say() { printf '%s\n' "$1" >"$status" 2>/dev/null; }
+
+  # The part a restart does not wipe: server.log starts afresh with every
+  # start, and the last update's story went with it.
+  note() {
+    mkdir -p "$(dirname "$log")" 2>/dev/null
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$log" 2>/dev/null
+  }
+
+  # A process and everything under it, deepest first.
+  tree() {
+    for c in $("$pgrep" -P "$1" 2>/dev/null); do tree "$c"; done
+    echo "$1"
+  }
 
   (
     trap '' HUP
 
     # The old Ascella has to be gone before the new one can bind the port.
+    # It was asked once; asked again at 30, and at 60 it is no longer asked.
+    note "updating to $version: waiting for the old Ascella (pid $launcher) to quit"
     i=0
     while kill -0 "$launcher" 2>/dev/null; do
       i=$((i + 1))
-      if [ "$i" -gt 120 ]; then say "stuck $version"; exit 1; fi
+      if [ "$i" -eq 30 ]; then
+        note "still running after $i ticks: asking it again"
+        kill -TERM "$launcher" 2>/dev/null
+      fi
+      if [ "$i" -eq 60 ]; then
+        under=$(tree "$launcher")
+        note "still running after $i ticks: killing it. What was left:"
+        for p in $under; do
+          ps -o pid=,ppid=,stat=,etime=,command= -p "$p" >>"$log" 2>/dev/null
+        done
+        # shellcheck disable=SC2086 # one pid per word, on purpose
+        kill -KILL $under 2>/dev/null
+      fi
+      if [ "$i" -gt 75 ]; then
+        note "gave up: pid $launcher survived SIGKILL"
+        say "stuck $version"
+        exit 1
+      fi
       sleep "$tick"
     done
+    note "the old Ascella is gone (after $i ticks); opening $bundle"
 
     "$open" "$bundle"
 
     i=0
     while [ "$i" -lt "$secs" ]; do
       if "$curl" -fsS --max-time 2 -o /dev/null "http://127.0.0.1:$port/help" 2>/dev/null; then
+        note "$version answers; done"
         say "ok $version"
         exit 0
       fi
@@ -93,8 +131,10 @@ defmodule Ascella.SelfUpdate.Mac do
     if mv "$bundle" "$failed" && mv "$previous" "$bundle"; then
       rm -rf "$failed"
       "$open" "$bundle"
+      note "$version did not answer within $secs ticks: the previous version is back"
       say "rolled-back $version"
     else
+      note "$version did not answer, and the previous version could not be put back"
       say "failed $version"
       exit 1
     fi
@@ -104,8 +144,11 @@ defmodule Ascella.SelfUpdate.Mac do
   @doc "The helper's script, as run by `/bin/sh -c`."
   def helper_script, do: @helper
 
-  @doc "The release asset this replaces the app with."
-  def asset, do: @asset
+  @doc "The release assets, by architecture."
+  def assets, do: @assets
+
+  @doc "The release asset this replaces the app with, for this machine (or the given architecture)."
+  def asset(arch \\ Ascella.Platform.arch()), do: Map.fetch!(@assets, arch)
 
   @doc "Where the running `Ascella.app` is, or nil when this copy is not inside one."
   def bundle_path do
@@ -151,10 +194,12 @@ defmodule Ascella.SelfUpdate.Mac do
   the quit was asked for. Anything else leaves the app as it was.
 
   `opts` exists for the tests: `:bundle`, `:launcher_pid`, `:port`,
-  `:status_file`, `:open`, `:curl`, `:pgrep`, `:seconds`, `:tick`.
+  `:status_file`, `:log_file`, `:open`, `:curl`, `:pgrep`, `:seconds`, `:tick`.
   """
   def apply(%{version: version, tag: tag}, ctx, opts \\ []) do
     bundle = Keyword.get_lazy(opts, :bundle, &bundle_path/0)
+
+    asset = asset(opts[:arch] || Ascella.Platform.arch())
 
     with true <- is_binary(bundle) || {:error, :not_a_bundle},
          true <- writable?(bundle) || {:error, {:not_writable, bundle}},
@@ -163,7 +208,7 @@ defmodule Ascella.SelfUpdate.Mac do
            Fetch.download(
              Updates.repo(),
              tag,
-             @asset,
+             asset,
              Path.join([ctx.downloads, "ascella", version]),
              ctx.github
            ),
@@ -264,7 +309,8 @@ defmodule Ascella.SelfUpdate.Mac do
       opts[:pgrep] || "/usr/bin/pgrep",
       to_string(opts[:seconds] || 45),
       version,
-      to_string(opts[:tick] || 1)
+      to_string(opts[:tick] || 1),
+      opts[:log_file] || Updates.log_file()
     ]
 
     {program, words} = CleanStart.command(:macos, "/bin/sh", ["-c", @helper, "sh" | args])

@@ -22,6 +22,12 @@ defmodule Ascella.Catalogue do
         "data": { "windows": [...], "macos": [...], "linux": [...] }
       }
 
+  An app that publishes a Mac build for Intel too says so: a hall app adds
+  `"macos_x86_64": true` (its `id-macos-x86_64.zip` is then expected), any
+  other adds a `"macos-x86_64"` platform of its own. Without one, an Intel
+  Mac is told there is no build for it yet; the Apple Silicon zip is never
+  offered to it.
+
   `platforms` and `data` may be left out for a `"layout": "hall"` app; what
   is written out wins, per target and per system.
 
@@ -41,7 +47,8 @@ defmodule Ascella.Catalogue do
 
   What Alnasl's release workflow publishes, with `Name` and `id` filled in:
   `Name-Setup.exe`, `NameApp-{version}-full.nupkg` (pack id `NameApp`),
-  `id-macos-aarch64.zip` holding `Name.app`, `id-linux-<arch>.tar.gz` holding
+  `id-macos-aarch64.zip` (and `id-macos-x86_64.zip` with `"macos_x86_64": true`)
+  holding `Name.app`, `id-linux-<arch>.tar.gz` holding
   `id/` with `install.sh`, installed in `/opt/id` as `id.service`. The data:
   `%LOCALAPPDATA%\\NameData`, `~/Library/Application Support/NameData`,
   `/var/lib/id`.
@@ -130,7 +137,7 @@ defmodule Ascella.Catalogue do
     layout =
       case entry["layout"] do
         nil -> %{platforms: %{}, data: %{}}
-        "hall" -> hall_layout(id, String.replace(name, " ", ""))
+        "hall" -> hall_layout(id, String.replace(name, " ", ""), intel_mac!(id, entry))
         other -> fail!("#{id}: unknown layout #{inspect(other)}")
       end
 
@@ -163,7 +170,9 @@ defmodule Ascella.Catalogue do
 
   defp app!(other), do: fail!("an entry that is not an object: #{inspect(other)}")
 
-  defp hall_layout(id, name) do
+  # `intel?` is the catalogue's `"macos_x86_64": true`: the app publishes
+  # `id-macos-x86_64.zip` as well. Until it does, an Intel Mac is told so.
+  defp hall_layout(id, name, intel?) do
     linux = fn arch ->
       %{
         "method" => "linux_script",
@@ -174,24 +183,28 @@ defmodule Ascella.Catalogue do
       }
     end
 
-    %{
-      platforms: %{
-        "windows-x86_64" => %{
-          "method" => "velopack",
-          "setup" => "#{name}-Setup.exe",
-          "package" => "#{name}App-{version}-full.nupkg",
-          "pack_id" => "#{name}App",
-          "main_exe" => "#{name}.exe",
-          "window_class" => "#{name}Launcher"
-        },
-        "macos-aarch64" => %{
-          "method" => "mac_app",
-          "asset" => "#{id}-macos-aarch64.zip",
-          "bundle" => "#{name}.app"
-        },
-        "linux-x86_64" => linux.("x86_64"),
-        "linux-aarch64" => linux.("aarch64")
+    mac = fn arch ->
+      %{"method" => "mac_app", "asset" => "#{id}-macos-#{arch}.zip", "bundle" => "#{name}.app"}
+    end
+
+    platforms = %{
+      "windows-x86_64" => %{
+        "method" => "velopack",
+        "setup" => "#{name}-Setup.exe",
+        "package" => "#{name}App-{version}-full.nupkg",
+        "pack_id" => "#{name}App",
+        "main_exe" => "#{name}.exe",
+        "window_class" => "#{name}Launcher"
       },
+      "macos-aarch64" => mac.("aarch64"),
+      "linux-x86_64" => linux.("x86_64"),
+      "linux-aarch64" => linux.("aarch64")
+    }
+
+    platforms = if intel?, do: Map.put(platforms, "macos-x86_64", mac.("x86_64")), else: platforms
+
+    %{
+      platforms: platforms,
       data: %{
         "windows" => ["{localappdata}/#{name}Data"],
         "macos" => ["{home}/Library/Application Support/#{name}Data"],
@@ -235,6 +248,13 @@ defmodule Ascella.Catalogue do
   end
 
   defp platform!(id, target, _spec), do: fail!("#{id} #{target}: no method")
+
+  defp intel_mac!(id, entry) do
+    case Map.get(entry, "macos_x86_64", false) do
+      flag when is_boolean(flag) -> flag
+      _other -> fail!("#{id}: macos_x86_64 is true or false")
+    end
+  end
 
   defp family!(_id, family) when family in ~w(windows macos linux), do: String.to_atom(family)
   defp family!(id, family), do: fail!("#{id}: data for an unknown system #{inspect(family)}")

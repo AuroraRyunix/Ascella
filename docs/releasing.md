@@ -48,6 +48,7 @@ is a link that stays right. The version is inside each file.
 | `ascella-linux-x86_64.tar.gz` | The Linux release, PCs | `install.sh`, `update.sh`, the download page |
 | `ascella-linux-aarch64.tar.gz` | The Linux release, 64-bit Raspberry Pi and other arm64 | the same |
 | `ascella-macos-aarch64.zip` | `Ascella.app` for Apple Silicon (M1 and later), zipped with `ditto` | the download page, the Terminal install in `docs/macos.md`; a Mac copy's update notice (its size) |
+| `ascella-macos-x86_64.zip` | `Ascella.app` for Intel Macs (macOS 10.13 and newer), built only for a release | the same, on an Intel Mac |
 | `install.sh` | The one-line installer | `curl ... \| sudo sh` |
 | `update.sh`, `uninstall.sh` | Copies of what the archive carries, for reading | nobody; a person |
 | `SHA256SUMS` | Checksums of everything above and below | `install.sh`, `update.sh`, the Mac Terminal install |
