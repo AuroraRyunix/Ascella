@@ -73,12 +73,22 @@ defmodule AscellaWeb.WhatsNewTest do
   end
 
   test "when GitHub cannot be reached it says so and the update stays", %{conn: conn} do
-    Req.Test.stub(Ascella.GitHub, &Req.Test.transport_error(&1, :econnrefused))
+    parent = self()
+
+    Req.Test.stub(Ascella.GitHub, fn conn ->
+      send(parent, {:asked, self()})
+
+      receive do
+        :go -> Req.Test.transport_error(conn, :econnrefused)
+      end
+    end)
 
     {:ok, view, _html} = live(conn, ~p"/")
     view |> element("#whats-new-hallapp") |> render_click()
     assert has_element?(view, "#whats-new-loading-hallapp")
 
+    assert_receive {:asked, plug}, 5_000
+    send(plug, :go)
     render_async(view)
     assert has_element?(view, "#whats-new-error-hallapp")
     assert has_element?(view, "#update-hallapp:not([disabled])")
