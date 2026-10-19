@@ -47,7 +47,30 @@ for a hall app; a `macos-x86_64` platform for any other).
 
 ### How far back
 
-HOWFAR_PLACEHOLDER
+10.13 (High Sierra) is where the Intel build stops, and the proof is in the
+smoke test's log: it lists the `minos` of every Mach-O file in the bundle
+(`vtool -show-build`), and `LSMinimumSystemVersion` in `Info.plist`, which
+the test also compares with the target. Measured on the first green run:
+`beam.smp`, `erl_child_setup`, `inet_gethost`, `crypto.so`, the other NIFs
+and drivers, and the launcher all say 10.13; the Swift libraries copied in
+(below) say 10.9. What was tried and what it needed:
+
+- **Erlang/OTP 29 and OpenSSL 3.5** compile and run their own build tests with
+  `MACOSX_DEPLOYMENT_TARGET=10.13` and `-mmacosx-version-min=10.13`; nothing
+  in them needed a patch. A lower target was not tried: 10.13 is the first
+  one that built, and it is believed (not checked) to be the oldest the
+  Xcode on the runner can target at all.
+- **The launcher** is Swift, and macOS before 10.14.4 has no Swift runtime. The
+  libraries it uses are copied into `Contents/Frameworks` by
+  `swift-stdlib-tool` and found through an `@rpath` (`-static-stdlib` is no
+  longer accepted by swiftc for Apple platforms). A few Foundation and
+  AppKit calls it made are 10.14 or 10.15 and newer (`scrollableTextView()`,
+  `FileHandle.seekToEnd()` and its relatives, `monospacedSystemFont`);
+  `Launcher.swift` asks `#available` and uses the older call on 10.13.
+- **Not tested on a real Mac running 10.13.** The runner is macOS 15. What CI
+  proves is that nothing in the bundle asks for more than 10.13 and that
+  the app starts and answers on a current macOS; whether 10.13 runs it is
+  for the test list below, on a Mac that old.
 
 ## Installing Ascella the first time
 
