@@ -72,6 +72,26 @@
       )}
     </p>
 
+    <h2>{gettext("Updating Ascella itself")}</h2>
+
+    <p id="help-self-update">
+      {gettext(
+        "When a newer Ascella is out, the page says so at the top, with an Update Ascella button. It is checked the same way as every other download, and it goes last: Update all does the other programs first, and Ascella refuses to update itself while it is installing, updating or going back for another program. Your data is not touched."
+      )}
+    </p>
+
+    <p>
+      {gettext(
+        "Mac: Ascella puts the new Ascella.app in place of the old one in the same folder, keeps the old one in a folder called .ascella-previous, quits, and the new one opens by itself. If the new one does not answer within a minute, the old one is put back and opened, and the page tells you. This needs Ascella.app to sit in a folder you may change, such as Applications; if it was opened straight from Downloads, Ascella says so: quit it, drag it into Applications and open it from there. The very first Ascella, if you got it with a browser, still has to be allowed once (right-click, Open; on macOS 15 and newer, Open Anyway in System Settings > Privacy & Security); after that it updates itself."
+      )}
+    </p>
+
+    <p>
+      {gettext(
+        "Windows: Ascella closes, its own installer (Velopack) swaps the program, and Ascella starts again. Linux: the update is handed to Ascella's update service, which restarts Ascella and puts the old version back if the new one does not answer."
+      )}
+    </p>
+
     <h2>{gettext("Removing Ascella")}</h2>
 
     <p>

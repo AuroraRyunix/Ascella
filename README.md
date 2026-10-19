@@ -162,6 +162,29 @@ page, `/remove-ascella` (linked from the help), with the exact steps per
 system, because a program that uninstalls itself while it runs has opinions
 about the order. Releasing: [docs/releasing.md](docs/releasing.md).
 
+### Ascella updates itself
+
+A newer Ascella is looked for the way every other program is: the latest
+GitHub release, its files checked against that release's `SHA256SUMS`
+(`Ascella.Fetch`, the same code). The page shows "Ascella X.Y.Z, update
+available" with an Update Ascella button. Two rules, both kept in
+`Ascella.Apps` and `Ascella.Updates.decide/1`: Ascella updates **last** (Update
+all does the other programs first and itself after them), and it **refuses**
+while anything is being installed, updated or rolled back. The data folder is
+never touched.
+
+| | how |
+|---|---|
+| **macOS** | `Ascella.SelfUpdate.Mac`: download and verify the zip, unpack beside the running `Ascella.app` (same volume), make sure the new app has no `com.apple.quarantine`, rename the running app to `.ascella-previous/Ascella.app` (exactly one previous copy) and the new one into place. A detached `/bin/sh` helper, started under `env -i` like every program Ascella starts, waits for the old Ascella to quit, opens the new one and asks its port for an answer; if there is none within 45 seconds it puts the previous app back and opens that. Then Ascella quits the way Quit does. Where `Ascella.app` is in a folder you may not write to (or runs from macOS's read-only copy of a download), nothing is attempted: the page says where Ascella is and to move it to /Applications. |
+| **Windows** | the launcher (`rel/windows/launcher.c`) sees Ascella quit with exit code 90 and has Velopack apply the update and start the new version. A portable zip has no updater and is updated by hand. |
+| **Linux** | the request goes to `ascella-update.path`, whose `ascella-update.service` runs `update.sh`: download, verify, switch, restart, and back again if the new version does not answer. |
+
+**What you do once.** On a Mac, the very first Ascella, if it came from a
+browser, still has to be allowed once (Open Anyway in System Settings >
+Privacy & Security; right-click, Open on macOS 14 and older), or you can use
+the Terminal line in [docs/macos.md](docs/macos.md), which needs nothing.
+After that Ascella updates itself, and what it downloads is never quarantined.
+
 ## Developing
 
 ```sh

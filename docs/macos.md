@@ -146,16 +146,41 @@ replacing the app (an update) or binning it (an uninstall) leaves it alone.
 
 ## Updates
 
-`launcher.sh` sets `ASCELLA_UPDATER=macos-app`, which only tells the page
-what kind of copy this is. There is no in-place updater on the Mac: a new
-`Ascella.app` replaces the old one, by hand or with the Terminal line
-above - after quitting Ascella and binning the old app: `ditto` merges
-into a bundle that is already there, and a merged bundle fails its seal.
+Ascella updates itself: the page offers it, and it goes last and never while
+anything else is being installed or updated. The details are in the
+README ("Ascella updates itself"); on a Mac, in order:
+
+1. the zip is downloaded and verified against the release's `SHA256SUMS`;
+2. it is unpacked with `ditto` into `.ascella-staging-ascella` in the folder
+   `Ascella.app` is in, so the swap is two renames on one disk;
+3. the new app must be a bundle of the right version and carry no
+   `com.apple.quarantine` (removed if it somehow does);
+4. `Ascella.app` goes to `.ascella-previous/Ascella.app` (the copy before
+   that is deleted: one is kept) and the new app takes its place;
+5. a detached helper (`/bin/sh -c`, the script and every value separate
+   arguments, `env -i` with the allow-list of `Ascella.CleanStart`) waits for
+   the old Ascella to be gone, opens the new one, and asks `127.0.0.1:PORT/help`
+   for an answer for 45 seconds. No answer: it stops what is left of the new
+   app, puts the previous one back and opens it. Its last word is in
+   `self-update-status` in the data folder, and the page shows it if it was
+   not "ok";
+6. Ascella quits the way Quit does (SIGTERM to its launcher; `launcher.sh`
+   hands the launcher's pid over as `ASCELLA_LAUNCHER_PID`).
+
+If the folder `Ascella.app` is in is not writable for the user (it was opened
+from Downloads, where macOS runs it from a read-only copy; or it sits
+somewhere that needs an administrator), nothing is downloaded and the page
+says where Ascella is. Quit it, drag it into /Applications, open it there.
+
+An Ascella that is older than this change has no updater and is replaced by
+hand, as before: quit it, bin the old app, and use the Terminal line above.
+`ditto` merges into a bundle that is already there, and a merged bundle
+fails its seal.
 
 Velopack (which updates the Windows copy in place) was considered and not
-used, for the same reasons as in Alnasl: its Mac installer is a `.pkg`
-installing into `/Applications` as root, an unsigned `.pkg` meets the same
-Gatekeeper refusal as the app, and nobody has tried an update over an
+used on the Mac, for the same reasons as in Alnasl: its Mac installer is a
+`.pkg` installing into `/Applications` as root, an unsigned `.pkg` meets the
+same Gatekeeper refusal as the app, and nobody has tried an update over an
 ad-hoc signed bundle. Worth another look once the app is signed.
 
 ## What can still ask, signed or not

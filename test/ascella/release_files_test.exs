@@ -438,4 +438,16 @@ defmodule Ascella.ReleaseFilesTest do
       assert script =~ "/?k="
     end
   end
+
+  describe "the Mac app can update itself" do
+    test "launcher.sh hands the app's pid to the server, which signals it on an update" do
+      assert read("rel/macos/launcher.sh") =~ ~s(export ASCELLA_LAUNCHER_PID="$PPID")
+      assert read("lib/ascella/self_update/mac.ex") =~ "ASCELLA_LAUNCHER_PID"
+    end
+
+    test "the asset the updater unpacks is the one the release workflow publishes" do
+      asset = Ascella.SelfUpdate.Mac.asset()
+      assert read(".github/workflows/release.yml") =~ asset
+    end
+  end
 end
