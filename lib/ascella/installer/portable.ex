@@ -6,7 +6,8 @@ defmodule Ascella.Installer.Portable do
       <programs>/<id>/<version>/<folder>/...   one folder per version
       <programs>/<id>/current                  the version in use
       <programs>/<id>/previous                 the one before it, kept
-      <programs>/<id>/pid                      what Ascella started (Linux)
+      <programs>/<id>/pid                      what Ascella started: "<pid> <start time>"
+      <programs>/<id>/logs/<id>.log            what it said (owned by the run-as user)
 
   An update unpacks the new version beside the old one, stops the app
   (SIGTERM, which the runtime takes as "shut down cleanly"; on Windows the
@@ -18,7 +19,23 @@ defmodule Ascella.Installer.Portable do
 
   When Ascella runs as root (its Linux service does), an app is not started
   as root: `ASCELLA_RUN_AS` names the user it runs as, and without it Start
-  says so instead of making root the owner of somebody's tournaments.
+  says so instead of making root the owner of somebody's tournaments. Before
+  each such start the way to the program is made walkable for that user
+  (the data folder's "execute" bit; the folder is `0750 root` otherwise and
+  the user could not reach the script it is told to run) and the folder of
+  the log is handed to it. A start counts only when the program is still
+  there a moment later (`start_check_ms`): a process that is already gone is
+  a failed start, and the end of its log is the error.
+
+  ## The pid file
+
+  A pid is a number the system hands out again. The file holds the process's
+  start time beside it (`/proc/<pid>/stat`, field 22, on Linux; `ps -o lstart`
+  on macOS), and a pid whose start time is not the recorded one is somebody
+  else's process: it is not "running", it is never sent a signal, and the
+  file is deleted. A file from before this (a bare pid) is trusted once, as
+  it always was. Windows finds the program by its executable name and keeps
+  no pid.
   """
   @behaviour Ascella.Installer
 
@@ -49,7 +66,7 @@ defmodule Ascella.Installer.Portable do
   end
 
   def running?(app, _spec, ctx) do
-    case pid(app, ctx) do
+    case live_pid(app, ctx) do
       nil -> false
       pid -> match?({_, 0}, Runner.run(ctx, "kill", ["-0", pid]))
     end
@@ -139,21 +156,68 @@ defmodule Ascella.Installer.Portable do
 
   def start(app, spec, ctx) do
     with {:ok, path} <- start_path(app, spec, ctx),
-         {:ok, prefix} <- as_user(ctx) do
-      log = Path.join(base(app, ctx), "#{app.id}.log")
+         {:ok, prefix} <- as_user(ctx),
+         :ok <- prepare_run_as(app, prefix, ctx) do
+      log = Path.join([base(app, ctx), "logs", "#{app.id}.log"])
       {program, args} = launch(prefix, path, log)
       {program, args} = Ascella.CleanStart.command(:linux, program, args)
 
       case Runner.run(ctx, program, args, cd: Path.dirname(path)) do
         {out, 0} ->
           case Regex.run(~r/(\d+)\s*\z/, out) do
-            [_, pid] -> Fs.write(Path.join(base(app, ctx), "pid"), pid, ctx)
+            [_, pid] -> settle(app, path, pid, String.trim_trailing(out, pid <> "\n"), log, ctx)
             nil -> {:error, :no_pid}
           end
 
         {out, status} ->
           {:error, {:exit, Path.basename(path), status, out}}
       end
+    end
+  end
+
+  # Records the pid with its start time, and then looks once more: a program
+  # that fell over in its first second (a script it was not allowed to read, a
+  # port taken) leaves a pid that was true for a moment and a launch command
+  # that exited 0 regardless.
+  defp settle(app, path, pid, said, log, ctx) do
+    stamp = start_stamp(pid, ctx)
+    pid_file = Path.join(base(app, ctx), "pid")
+
+    with :ok <- Fs.write(pid_file, pid_line(pid, stamp), ctx) do
+      if ctx.start_check_ms > 0, do: Process.sleep(ctx.start_check_ms)
+
+      if match?({_, 0}, Runner.run(ctx, "kill", ["-0", pid])) do
+        :ok
+      else
+        Fs.rm_rf(pid_file, ctx)
+        {:error, {:died, Path.basename(path), tail(log, said)}}
+      end
+    end
+  end
+
+  # The end of what the program wrote, or of what the launch itself said when
+  # there is no log (the shell could not even open it).
+  defp tail(log, said) do
+    logged =
+      case File.read(log) do
+        {:ok, text} -> String.slice(text, -400, 400)
+        _none -> ""
+      end
+
+    String.trim(logged <> " " <> said)
+  end
+
+  # Gives the run-as user what it needs to start the program: a way to walk to
+  # it, and a folder for its log. Nothing to do when Ascella is not root.
+  defp prepare_run_as(_app, [], _ctx), do: :ok
+
+  defp prepare_run_as(app, ["runuser", "-u", user], ctx) do
+    base = base(app, ctx)
+    logs = Path.join(base, "logs")
+
+    with :ok <- Fs.mkdir_p(logs, ctx),
+         :ok <- Installer.run(ctx, "chown", ["--", user, logs]) do
+      Installer.run(ctx, "chmod", ["o+x", Path.dirname(ctx.programs), ctx.programs, base])
     end
   end
 
@@ -176,7 +240,7 @@ defmodule Ascella.Installer.Portable do
     do: Installer.run(ctx, "taskkill", ["/IM", Path.basename(spec.start)])
 
   def stop(app, _spec, ctx) do
-    case pid(app, ctx) do
+    case live_pid(app, ctx) do
       nil -> :ok
       pid -> Installer.run(ctx, "kill", ["-TERM", pid])
     end
@@ -191,12 +255,60 @@ defmodule Ascella.Installer.Portable do
 
   defp base(app, ctx), do: Path.join(ctx.programs, app.id)
 
-  defp pid(app, ctx) do
-    case File.read(Path.join(base(app, ctx), "pid")) do
-      {:ok, text} -> if text =~ ~r/\A\d+\s*\z/, do: String.trim(text)
+  # The pid Ascella started, if that process is still the one it started: the
+  # recorded start time has to be the process's own. A pid file that fails the
+  # test is stale and is deleted.
+  defp live_pid(app, ctx) do
+    file = Path.join(base(app, ctx), "pid")
+
+    with {:ok, text} <- File.read(file),
+         [_, pid | rest] <- Regex.run(~r/\A(\d+)(?: (.+?))?\s*\z/s, text) do
+      stamp = List.first(rest)
+
+      cond do
+        stamp in [nil, ""] ->
+          pid
+
+        start_stamp(pid, ctx) == stamp ->
+          pid
+
+        true ->
+          Fs.rm_rf(file, ctx)
+          nil
+      end
+    else
       _none -> nil
     end
   end
+
+  defp pid_line(pid, nil), do: pid <> "\n"
+  defp pid_line(pid, stamp), do: pid <> " " <> stamp <> "\n"
+
+  # When the process started, as the system says it: a value that two
+  # processes of the same pid will not share. nil when it cannot be read
+  # (the process is gone, or the system does not say).
+  @doc false
+  def start_stamp(pid, %{family: :linux} = ctx) do
+    with {:ok, stat} <- File.read(Path.join(ctx.root, "/proc/#{pid}/stat")),
+         # The command name is in parentheses and may hold spaces and
+         # parentheses of its own: the fields count from the last one. After
+         # it come field 3 (the state) onwards, so field 22 is the 20th word.
+         [_, after_name] <- Regex.run(~r/\)([^)]*)\z/s, stat),
+         started when is_binary(started) <- Enum.at(String.split(after_name), 19) do
+      started
+    else
+      _none -> nil
+    end
+  end
+
+  def start_stamp(pid, %{family: :macos} = ctx) do
+    case Runner.run(ctx, "ps", ["-o", "lstart=", "-p", pid]) do
+      {out, 0} -> if String.trim(out) != "", do: String.trim(out)
+      _none -> nil
+    end
+  end
+
+  def start_stamp(_pid, _ctx), do: nil
 
   defp word(path) do
     with {:ok, text} <- File.read(path),

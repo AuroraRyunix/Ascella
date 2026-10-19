@@ -15,14 +15,21 @@ Type=exec
 # /var/lib, add users and call systemctl. A service user would need all of
 # that handed to it piecemeal, which is root with extra steps and a sudoers
 # file nobody reads. What makes this tolerable: it listens on 127.0.0.1 and
-# nowhere else (ascella.env cannot change that), and it runs only scripts
-# that came from a release whose checksum it checked.
+# nowhere else (ascella.env cannot change that), that its page wants a key only
+# root and the desktop user can read (see ASCELLA_TOKEN_FILE below), and that
+# it runs only scripts that came from a release whose checksum it checked.
 WorkingDirectory=/var/lib/ascella
 
 Environment=HOME=/var/lib/ascella
 Environment=LANG=C.UTF-8
 Environment=ASCELLA_DATA=/var/lib/ascella
 Environment=PORT=4090
+# Where the service leaves the key its page wants (Ascella.Access): written at
+# every start, mode 0600, owned by ASCELLA_RUN_AS when that is set in
+# ascella.env. Root and the desktop user can read it, nobody else on the box;
+# `ascella.sh open` turns it into a link. /run/ascella is the RuntimeDirectory
+# below, so the key goes when the service stops.
+Environment=ASCELLA_TOKEN_FILE=/run/ascella/token
 # No Erlang distribution: no epmd, no node listening on the hall's network.
 Environment=RELEASE_DISTRIBUTION=none
 # The release writes its start-up configuration somewhere; not into /opt.

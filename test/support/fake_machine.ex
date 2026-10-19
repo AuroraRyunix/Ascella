@@ -53,6 +53,7 @@ defmodule Ascella.FakeMachine do
       run_as: nil,
       stop_timeout_ms: 300,
       poll_ms: 10,
+      start_check_ms: 0,
       github: [plug: {Req.Test, Ascella.GitHub}]
     }
   end

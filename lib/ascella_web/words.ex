@@ -135,6 +135,13 @@ defmodule AscellaWeb.Words do
   def reason(:changed_after_download),
     do: gettext("The download changed after it was checked, and was not run.")
 
+  def reason({:died, program, tail}),
+    do:
+      gettext("%{program} stopped right after it started. What it said: %{tail}",
+        program: program,
+        tail: if(tail == "", do: gettext("(nothing)"), else: tail)
+      )
+
   def reason({:exit, program, status, _output}),
     do: gettext("%{program} stopped with code %{status}.", program: program, status: status)
 
