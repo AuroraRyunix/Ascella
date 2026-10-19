@@ -25,6 +25,8 @@ defmodule Ascella.Context do
       wrapper scripts, icons)
     * `gsettings` - whether GNOME's `gsettings` is there (Linux)
     * `stop_timeout_ms`, `poll_ms` - how long a polite stop is waited for
+    * `start_check_ms` - how long after starting a portable program it is
+      looked at again; one that is already gone was not started
   """
 
   alias Ascella.{Paths, Platform}
@@ -50,6 +52,7 @@ defmodule Ascella.Context do
     sudo: false,
     stop_timeout_ms: 60_000,
     poll_ms: 500,
+    start_check_ms: 1_000,
     github: []
   ]
 

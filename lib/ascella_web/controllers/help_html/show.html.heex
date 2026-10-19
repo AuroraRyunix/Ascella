@@ -87,5 +87,11 @@
         "This page answers this computer only, never the hall's network: whoever reaches it can install programs. On a box without a screen, use an SSH tunnel to port 4090."
       )}
     </p>
+
+    <p id="help-key">
+      {gettext(
+        "On a Linux box where Ascella runs as a service, the page also wants a key that only root and the desktop user can read. Open it with: sh /opt/ascella/current/ascella.sh open (add --print to get the link instead, for example to paste in the browser at the other end of an SSH tunnel). Restarting Ascella makes a new key."
+      )}
+    </p>
   </article>
 </Layouts.app>

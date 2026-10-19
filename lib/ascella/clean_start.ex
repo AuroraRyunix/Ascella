@@ -29,6 +29,14 @@ defmodule Ascella.CleanStart do
   `Win32_Process.Create` (`Ascella.Installer.start_detached/3`) creates the
   process under the WMI service, whose environment is not Ascella's. Both are
   clean already and are left alone.
+
+  One more place needs a program run *and waited for* in a clean environment:
+  a Windows `Setup.exe --silent`, whose answer Ascella wants, and which may
+  start the app it has just installed. WMI does not wait, so there the
+  environment is cleaned the other way round, with a deny-list because Windows
+  programs need most of what is set (`unset/1`): the variables of Ascella's
+  own release, which are exactly the ones that make a sister program believe
+  it is already running.
   """
 
   @always ~w(HOME USER LOGNAME LANG)
@@ -45,6 +53,22 @@ defmodule Ascella.CleanStart do
   def command(family, program, args, env \\ System.get_env()) do
     {"/usr/bin/env", ["-i" | assignments(family, env)] ++ [program | args]}
   end
+
+  @doc """
+  `[{name, nil}]` for every variable of `env` that belongs to Ascella's own
+  release (`PORT`, `ASCELLA_*`, `RELEASE_*`, `PHX_*`, `SECRET_KEY_BASE`, the
+  Erlang runtime's), in the form `System.cmd/3`'s `:env` option takes to
+  remove them. Case is ignored: Windows does.
+  """
+  def unset(env \\ System.get_env()) do
+    for {name, _} <- env, own?(String.upcase(name)), do: {name, nil}
+  end
+
+  @own_exact ~w(PORT SECRET_KEY_BASE BINDIR ROOTDIR EMU PROGNAME ERL_LIBS ERL_FLAGS ERL_AFLAGS
+                ERL_ZFLAGS HEART_COMMAND)
+  @own_prefix ~w(ASCELLA_ RELEASE_ PHX_ ERL_ ELIXIR_ MIX_)
+
+  defp own?(name), do: name in @own_exact or String.starts_with?(name, @own_prefix)
 
   @doc "The `NAME=value` words passed to `env -i`."
   def assignments(family, env \\ System.get_env()) do

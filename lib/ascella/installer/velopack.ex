@@ -81,7 +81,10 @@ defmodule Ascella.Installer.Velopack do
   defp first_install(app, spec, release, ctx) do
     with {:ok, %{path: setup, sha256: sum}} <- Installer.fetch(app, spec, :setup, release, ctx),
          true <- Fetch.still?(setup, sum) || {:error, :changed_after_download} do
-      Installer.run(ctx, setup, ["--silent"])
+      # Without Ascella's own PORT, RELEASE_* and the rest: Setup may start the
+      # app it has installed, and an app that finds Ascella's PORT in its
+      # environment believes it is already running (`Ascella.CleanStart`).
+      Installer.run(ctx, setup, ["--silent"], env: Ascella.CleanStart.unset())
     end
   end
 

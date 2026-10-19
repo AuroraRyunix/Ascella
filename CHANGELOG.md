@@ -19,6 +19,11 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Security] **On Linux the page wants a key.** The service is root and listens on 127.0.0.1, which every process on the box can reach, so another login (or a compromised service account) could fetch the page, take its CSRF token and press Install, Update or "remove with its data" as root. The service now writes a random key at every start to `/run/ascella/token`, readable by root and the `ASCELLA_RUN_AS` user only; `ascella.sh open` turns it into a link (`/?k=...`) that the page trades for a signed cookie and redirects away; pages and LiveView sockets without that cookie are refused. Windows, macOS and a terminal start have none of this.
+- [Fix] **OpenPairings under the Linux service now actually starts.** The program lives under `/var/lib/ascella`, which is `0750 root`, and it was started as the `ASCELLA_RUN_AS` user, who could not get in; the shell failed its redirect, still printed a pid, and Ascella reported success. Ascella now gives that user a way to walk to the program and a log folder of its own, and a program that is gone a moment after it started is a failed start, with the end of its log (or what the shell said) on the tile.
+- [Fix] **A stale pid file can no longer point Stop at somebody else's process.** After a reboot or a crash the number in the `pid` file can be any process; as root, Stop sent it SIGTERM, and install and update refused for ever because "it is running". The pid is now stored with the process's start time and trusted only when that matches; otherwise the file is deleted. A pid file from before this is trusted once, as it always was.
+- [Fix] **A first install on Windows no longer hands Setup.exe Ascella's own environment.** Velopack's Setup may start the app it just installed, and an app that finds `PORT=4090` in its environment concludes Ascella is already running it and leaves. Setup now runs with the variables of Ascella's own release removed.
+
 ## [0.2.2] - 2026-10-18
 
 - [Fix] **Stopping no longer ends in a red stack trace.** On the way out the launcher-details process tidied up its secret by asking the application controller, which at that point is busy dying and answers everyone with an exit. The secret goes with the VM anyway, so now it lets the question go unanswered and leaves quietly.

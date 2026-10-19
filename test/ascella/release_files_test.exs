@@ -425,4 +425,17 @@ defmodule Ascella.ReleaseFilesTest do
       end
     end
   end
+
+  describe "the key to the Linux service's page" do
+    test "the unit says where to write it, and ascella.sh open reads it from there" do
+      unit = read("rel/linux/ascella.service")
+      script = read("rel/linux/ascella.sh")
+
+      assert unit =~ "Environment=ASCELLA_TOKEN_FILE=/run/ascella/token"
+      assert unit =~ "RuntimeDirectory=ascella"
+      assert script =~ ~s(if [ "${1:-}" = open ])
+      assert script =~ "ASCELLA_TOKEN_FILE:-/run/ascella/token"
+      assert script =~ "/?k="
+    end
+  end
 end

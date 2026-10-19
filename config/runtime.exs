@@ -26,6 +26,13 @@ if config_env() != :test do
     http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT", "4090"))]
 end
 
+# The Linux service (root) wants a key of whoever uses its page: where the
+# service unit says to write it. Everything else - Windows, macOS, a terminal -
+# leaves this unset and the page answers without one. See Ascella.Access.
+if token_file = System.get_env("ASCELLA_TOKEN_FILE") do
+  config :ascella, access_token_file: token_file
+end
+
 # Another catalogue than the one in priv/ (a test hall, a fork). It is read
 # as data and held to the same rules: GitHub repositories only.
 if catalogue = System.get_env("ASCELLA_CATALOGUE") do

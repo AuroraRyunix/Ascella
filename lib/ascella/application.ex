@@ -7,6 +7,9 @@ defmodule Ascella.Application do
 
   @impl true
   def start(_type, _args) do
+    # The Linux service's key, before the endpoint can answer anybody.
+    Ascella.Access.start()
+
     children = [
       AscellaWeb.Telemetry,
       {Phoenix.PubSub, name: Ascella.PubSub},

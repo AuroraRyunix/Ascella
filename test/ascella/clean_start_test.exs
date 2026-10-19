@@ -119,4 +119,55 @@ defmodule Ascella.CleanStartTest do
     assert ["sh", "-c", _nohup, script, _log] = Enum.drop_while(rest, &(&1 =~ "="))
     assert script =~ "zipapp.sh"
   end
+
+  test "unset/1 names Ascella's own variables, whatever their case, and nothing else" do
+    env = %{
+      "PORT" => "4090",
+      "ASCELLA_DATA" => "/x",
+      "RELEASE_ROOT" => "/y",
+      "ReLeAsE_TmP" => "/z",
+      "BINDIR" => "/erts",
+      "ERL_AFLAGS" => "+B",
+      "SystemRoot" => "C:\\Windows",
+      "PATH" => "/bin",
+      "TEMP" => "/tmp",
+      "PORTABLE_MODE" => "1"
+    }
+
+    unset = env |> CleanStart.unset() |> Enum.sort()
+
+    assert unset ==
+             Enum.sort([
+               {"ASCELLA_DATA", nil},
+               {"BINDIR", nil},
+               {"ERL_AFLAGS", nil},
+               {"PORT", nil},
+               {"RELEASE_ROOT", nil},
+               {"ReLeAsE_TmP", nil}
+             ])
+  end
+
+  test "Windows: the first install runs Setup.exe without Ascella's own variables", %{tmp: tmp} do
+    ctx = FakeMachine.context(tmp, :windows)
+    parent = self()
+
+    FakeRunner.script(fn program, args, opts ->
+      send(parent, {:ran, Path.basename(program), args, opts})
+      {"", 0}
+    end)
+
+    Ascella.FakeGitHub.serve(%{
+      "Example/Zipapp" => %{version: "1.0.0", files: %{"Zipapp-1.0.0-win-Setup.exe" => "setup"}}
+    })
+
+    release = %{version: "1.0.0", tag: "v1.0.0"}
+    assert :ok = Installer.install(Catalogue.get("zipapp"), release, ctx)
+
+    assert_received {:ran, "Zipapp-1.0.0-win-Setup.exe", ["--silent"], opts}
+    env = Keyword.fetch!(opts, :env)
+    assert {"PORT", nil} in env
+    assert {"ASCELLA_DATA", nil} in env
+    assert {"RELEASE_ROOT", nil} in env
+    refute Enum.any?(env, fn {_name, value} -> value != nil end)
+  end
 end

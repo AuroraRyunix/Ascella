@@ -116,9 +116,40 @@ See `Ascella.Catalogue` for every field.
 | `ASCELLA_DATA` | Ascella's own folder (downloads, portable programs, its secret) |
 | `ASCELLA_CATALOGUE` | another catalogue |
 | `ASCELLA_APPS_DIR` | macOS: where the apps go, instead of `/Applications` (then `~/Applications`) |
-| `ASCELLA_RUN_AS` | Linux: the user portable programs run as when Ascella runs as root |
+| `ASCELLA_RUN_AS` | Linux: the user portable programs run as when Ascella runs as root, and the user who may read the key to the page (see below). Set it in `/etc/ascella/ascella.env` |
+| `ASCELLA_TOKEN_FILE` | Linux service: where the page's key is written at every start (the unit sets `/run/ascella/token`); unset everywhere else |
 
 On a box without a screen: `ssh -L 4090:127.0.0.1:4090 box`.
+
+### The key (Linux service)
+
+The Linux service is root and listens on 127.0.0.1, which every process of
+the box can reach, so its page wants a key. At every start the service writes
+a random one to `/run/ascella/token`, readable by root and by the user
+`ASCELLA_RUN_AS` names and by nobody else. The way in is a link that carries
+it once:
+
+```sh
+sh /opt/ascella/current/ascella.sh open           # opens it in the browser (as that user)
+sh /opt/ascella/current/ascella.sh open --print   # prints http://localhost:4090/?k=...
+```
+
+The page takes the key, remembers the browser with a signed cookie and sends
+it on to the page without the key in the address. A request with neither
+gets a 403 that says so. Through an SSH tunnel: run `open --print` on the box
+and paste the link into the browser of the machine you came from. A restart
+makes a new key, so every browser comes in again by the link. Windows, macOS
+and a Linux start in a terminal have no key and nothing changes there.
+
+Portable programs started by the root service (OpenPairings on Linux) run as
+`ASCELLA_RUN_AS`: before each start Ascella gives that user a way to walk to
+the program (the "execute" bit of the data folder, which is otherwise
+`0750 root`) and a log folder of its own, `programs/<id>/logs`. A program that
+is already gone a second after it started is a failed start and the tile shows
+the end of its log. Ascella's `pid` file records when the process started
+beside its number (`/proc/<pid>/stat` on Linux, `ps -o lstart` on macOS), and
+a pid whose start time differs is another process: it is never reported as
+running and never sent a signal.
 
 ## Installing Ascella
 
