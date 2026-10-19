@@ -2,7 +2,9 @@ CI.System: Command Injection via `System` function,lib/ascella/runner/system.ex:
 Config.CSP: Missing Content-Security-Policy,lib/ascella_web/router.ex:13,3DDBB0E
 Config.HTTPS: HTTPS Not Enabled,config/prod.exs:0,2B5C077
 DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/catalogue.ex:225,6C2F7FC
+DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/catalogue.ex:238,3B8A314
 DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/catalogue.ex:239,44CA3D6
+DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/catalogue.ex:259,2FCF0A0
 DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/launchers.ex:223,33B67AC
 Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/access.ex:91,3442D70
 Traversal.FileModule: Directory Traversal in `File.chmod`,lib/ascella/launcher_details.ex:158,116F9B7
@@ -26,6 +28,7 @@ Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/updates.
 Traversal.FileModule: Directory Traversal in `File.mkdir_p`,lib/ascella/updates.ex:193,41EE2B8
 Traversal.FileModule: Directory Traversal in `File.open`,lib/ascella/launcher_details/cli.ex:223,38C8AA8
 Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/catalogue.ex:100,778AB90
+Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/catalogue.ex:107,63EDD51
 Traversal.FileModule: Directory Traversal in `File.read!`,lib/ascella/fetch.ex:143,6B48882
 Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer.ex:254,60E5375
 Traversal.FileModule: Directory Traversal in `File.read`,lib/ascella/installer/mac_app.ex:208,257CF22
@@ -64,4 +67,5 @@ Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/updates.ex
 Traversal.FileModule: Directory Traversal in `File.write`,lib/ascella/updates.ex:194,2F9D45
 XSS.Raw: XSS,lib/ascella_web/components/layouts.ex:21,4D367E2
 XSS.Raw: XSS,lib/ascella_web/live/home_live.ex:584,6D4EE35
+XSS.Raw: XSS,lib/ascella_web/live/home_live.ex:590,5C94EBA
 XSS.SendResp: XSS in `send_resp`,lib/ascella_web/controllers/help_controller.ex:20,4AE328F
