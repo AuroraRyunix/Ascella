@@ -19,6 +19,8 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Change] **The Mac app is signed with a Developer ID and notarised by Apple.** Until now it was signed with nothing but good intentions, and every Mac that downloaded it asked the arbiter to override Gatekeeper by hand, which is a strange way to greet someone who just installed your software. The release workflow now signs every binary inside Ascella.app, hardened runtime and BEAM entitlements included, sends the bundle to Apple, staples the ticket and checks the verdict with `spctl` before the zip exists. A fork without the secrets still builds, with a warning, ad-hoc signed. The workflow can also be started by hand with *mac_only* to test all this without publishing anything.
+
 ## [0.3.4] - 2026-10-20
 
 - [Fix] **Stopping an app from Ascella actually stops it, and a self-update gets past "Stopping".** Every hall app's Mac window waited for its server to end inside the very queue that was to bring the news, so the server ended and the window said "Stopping" until somebody force-quit it. Quit from the menu never had the problem, which is how it survived. Ascella's own window is fixed here; the other programs get the same fix in their next release. Any stop that hangs anyway now ends after forty seconds.

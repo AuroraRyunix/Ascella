@@ -81,28 +81,30 @@ find them stays on its version for ever without saying why.
 
 ## Signing the Mac app
 
-Not done yet: there is no Apple Developer account. The macOS job builds
-`Ascella.app` **ad-hoc signed** (Apple Silicon requires a signature on every
-binary; Gatekeeper still asks once, see `docs/macos.md`, "Installing
-Ascella the first time").
-
-The signing step is already in `release.yml`, and skips itself while the
-secret `APPLE_CERTIFICATE_P12_BASE64` is empty. Once the account exists,
-add these repository secrets and nothing else changes:
+The macOS jobs sign `Ascella.app` with the Developer ID Application
+certificate and the hardened runtime, notarise it with Apple, staple the
+ticket and check it with `spctl` before the zip is made. A build without
+the secrets (a fork) skips all of that with a warning and ships ad-hoc
+signed. The secrets belong to the `teapot-chess` organisation, so every
+repository in it has them:
 
 | Secret | What |
 |---|---|
-| `APPLE_CERTIFICATE_P12_BASE64` | the *Developer ID Application* certificate with its private key, exported as `.p12`, then base64 |
-| `APPLE_CERTIFICATE_PASSWORD` | the `.p12`'s password |
+| `MACOS_CERT_P12` | the *Developer ID Application* certificate with its private key and the intermediate, exported as `.p12`, then base64 |
+| `MACOS_CERT_PASSWORD` | the `.p12`'s password |
 | `APPLE_TEAM_ID` | the ten-character team id |
-| `APPLE_ID` | the Apple ID that notarises |
-| `APPLE_APP_PASSWORD` | an app-specific password for that Apple ID |
+| `ASC_KEY_ID` | the App Store Connect API key's id |
+| `ASC_ISSUER_ID` | the API key's issuer id |
+| `ASC_KEY_P8` | the API key's `.p8` file, base64 |
 
-`rel/macos/sign_and_notarize.sh` then signs every binary with the hardened
-runtime and the BEAM's entitlements (JIT, `dlopen` of whatever NIF a
-dependency brings), notarises, staples, and asks Gatekeeper before the zip
-is made. The same five secrets, under the same names, sign OpenPairings.app
-and Alnasl.app. The first signed build needs a Mac test of its own.
+`rel/macos/sign_and_notarize.sh` signs every binary with the hardened
+runtime and the BEAM's entitlements, notarises with the API key, staples,
+and asks Gatekeeper. The temporary keychain is deleted at the end of the
+job, whatever happened.
+
+To test the signing without releasing anything, start the workflow by hand
+on a branch with **mac_only**: it builds and notarises the Mac apps and
+publishes nothing.
 
 ## Building one by hand
 
@@ -201,7 +203,7 @@ what holds.
 - [ ] `macos-15` builds it, `build_app.sh` finds no Homebrew library, and
       the app starts from a read-only bundle on the runner.
 - [ ] Installed the Terminal way, it opens without a Gatekeeper question.
-      Downloaded in a browser, it opens after "Open Anyway".
+      Downloaded in a browser, it opens with no question.
 - [ ] An app Ascella downloads opens without a Gatekeeper question.
 - [ ] The data is in `~/Library/Application Support/AscellaData`, and is
       still there after the app is binned.

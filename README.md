@@ -181,11 +181,9 @@ never touched.
 | **Windows** | the launcher (`rel/windows/launcher.c`) sees Ascella quit with exit code 90 and has Velopack apply the update and start the new version. A portable zip has no updater and is updated by hand. |
 | **Linux** | the request goes to `ascella-update.path`, whose `ascella-update.service` runs `update.sh`: download, verify, switch, restart, and back again if the new version does not answer. |
 
-**What you do once.** On a Mac, the very first Ascella, if it came from a
-browser, still has to be allowed once (Open Anyway in System Settings >
-Privacy & Security; right-click, Open on macOS 14 and older), or you can use
-the Terminal line in [docs/macos.md](docs/macos.md), which needs nothing.
-After that Ascella updates itself, and what it downloads is never quarantined.
+**What you do once.** On a Mac there is nothing to do: the app is signed and notarised and opens
+with a double-click (a build from a fork is only ad-hoc signed; see
+[docs/macos.md](docs/macos.md)). Ascella updates itself, and what it downloads is never quarantined.
 
 ## Developing
 
