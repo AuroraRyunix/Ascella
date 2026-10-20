@@ -69,7 +69,10 @@ wrong is refused and deleted. Nothing unverified is ever unpacked or run.
 
 That catches a broken or swapped download, not a release that was bad when
 it was published: the sums come from the same release. That would take
-signatures, and nobody signs anything yet.
+signatures. Releases now carry them: from the next release on, every file
+and `SHA256SUMS` itself have a GitHub artifact attestation (keyless, Sigstore).
+Ascella does not check them yet; a person can, with
+`gh attestation verify <file> --repo teapot-chess/<repo>`.
 
 ## The data
 

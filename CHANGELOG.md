@@ -19,6 +19,8 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Change] **Releases carry signed build provenance.** Every file of a release, `SHA256SUMS` included, is now attested through GitHub and Sigstore, keyless, so `gh attestation verify <file> --repo teapot-chess/Ascella` can say who built it and from what. Until now the checksums vouched for a download only against the release they sat in, which is a witness who was hired by the defendant.
+
 ## [0.3.4] - 2026-10-20
 
 - [Fix] **Stopping an app from Ascella actually stops it, and a self-update gets past "Stopping".** Every hall app's Mac window waited for its server to end inside the very queue that was to bring the news, so the server ended and the window said "Stopping" until somebody force-quit it. Quit from the menu never had the problem, which is how it survived. Ascella's own window is fixed here; the other programs get the same fix in their next release. Any stop that hangs anyway now ends after forty seconds.
