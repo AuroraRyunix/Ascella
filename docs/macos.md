@@ -14,7 +14,7 @@ with a Mac still has to confirm.
 | Intel | `ascella-macos-x86_64.zip`, built on `macos-15-intel`, only for a release or a hand-started run |
 | Runtime | Erlang/OTP 29.0.5 compiled on the runner by `rel/macos/build_otp.sh`, for macOS 11, with OpenSSL 3.5 compiled the same way and linked into `crypto` statically; Elixir 1.20 from its own precompiled zip. Cached, so only the first run with a given set of versions pays. Linux and Windows use `erlef/setup-beam`; on macOS that would be `erlef/otp_builds`, which is built for macOS 15 (see [Why the runtime is built here](#why-the-runtime-is-built-here)) |
 | Oldest macOS | Apple Silicon: 11 (Big Sur); Intel: 10.13 (High Sierra), see [Intel Macs](#intel-macs). The Apple Silicon build is Everything compiled on the runner is built for it (`MACOSX_DEPLOYMENT_TARGET=11.0`, or the Intel target's `macos_min` in the workflow), and `build_app.sh` fails the build, naming the files, if any binary asks for newer; what they accept goes into `Info.plist` |
-| Signed | ad-hoc only, for now - see [Installing Ascella the first time](#installing-ascella-the-first-time) |
+| Signed | Developer ID, hardened runtime, notarised and stapled - see [Installing Ascella the first time](#installing-ascella-the-first-time) |
 
 ## Intel Macs
 
@@ -74,13 +74,32 @@ and drivers, and the launcher all say 10.13; the Swift libraries copied in
 
 ## Installing Ascella the first time
 
-Ascella is an unsigned, zipped `.app` (ad-hoc signed: every binary carries
-a signature, which Apple Silicon insists on, but Gatekeeper does not know
-who made it). A file a **browser** downloads gets the quarantine flag
-(`com.apple.quarantine`), and a quarantined unsigned app is refused on its
-first start. That is the one manual step, once, for Ascella itself.
+Ascella is a zipped `.app`, signed with a Developer ID, hardened runtime and
+timestamp, notarised by Apple and stapled. Double-click it and it opens, with
+no question, browser download or not. The two ways below are for a build from
+a fork, which has no signing secrets and is only ad-hoc signed: Gatekeeper then
+refuses a file a **browser** downloaded (it gets the quarantine flag,
+`com.apple.quarantine`) until it is allowed once.
 
-### The recommended way: Terminal
+Every Mach-O file in the app (the Erlang runtime, `beam.smp`, the NIF
+libraries) is signed with the Developer ID Application certificate, the
+hardened runtime and a timestamp, from the inside out, then the bundle. The
+BEAM's JIT needs entitlements the hardened runtime otherwise forbids
+(`rel/macos/entitlements.plist` says which). The bundle is then sent to
+Apple's notary service and the ticket is stapled to it, so a Mac with no
+network at the venue opens it without a question. The workflow asks
+Gatekeeper itself (`spctl -a -vvv -t exec`) and fails unless the answer is
+"Notarized Developer ID".
+
+So the first start is a double-click. Only a build from a fork, which has no
+signing secrets, is ad-hoc signed; macOS then refuses it once and *System
+Settings > Privacy & Security > Open Anyway* is the way in.
+
+To try the signing without a release: run the workflow by hand on any branch
+with **mac_only** ticked. It builds, signs, notarises and checks the Mac
+apps and publishes nothing.
+
+### For an ad-hoc build: Terminal
 
 `curl` does not set the quarantine flag, so an app fetched with it opens
 like any other. Open *Terminal* (Applications > Utilities) and paste this
@@ -98,7 +117,7 @@ start it. No question from Gatekeeper, because nothing was quarantined to
 ask about. The checksum catches a download that broke, not a release that
 was tampered with: the sums come from the same place as the zip.
 
-### The Finder way
+### For an ad-hoc build: the Finder way
 
 1. Download `ascella-macos-aarch64.zip` from the release page in the
    browser.
@@ -237,9 +256,9 @@ fails its seal.
 
 Velopack (which updates the Windows copy in place) was considered and not
 used on the Mac, for the same reasons as in Alnasl: its Mac installer is a
-`.pkg` installing into `/Applications` as root, an unsigned `.pkg` meets the
-same Gatekeeper refusal as the app, and nobody has tried an update over an
-ad-hoc signed bundle. Worth another look once the app is signed.
+`.pkg` installing into `/Applications` as root, a `.pkg` meets the
+same Gatekeeper rules as the app, and nobody has tried an update over a
+signed bundle. Worth another look now that the app is signed.
 
 ## What can still ask, signed or not
 
@@ -250,12 +269,7 @@ ad-hoc signed bundle. Worth another look once the app is signed.
   talks to its own machine and to GitHub. The apps it starts may ask for
   themselves.
 
-**Signing, when the account exists**, is five repository secrets -
-`APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`,
-`APPLE_TEAM_ID`, `APPLE_ID`, `APPLE_APP_PASSWORD` - see
-[releasing.md, "Signing the Mac app"](releasing.md#signing-the-mac-app). The
-step is in the workflow already and skips itself while they are missing.
-Then the first start is a double-click, browser or not.
+**Signing** is described in [releasing.md, "Signing the Mac app"](releasing.md#signing-the-mac-app).
 
 ## Why the runtime is built here
 
@@ -287,7 +301,7 @@ In the macOS job of `.github/workflows/release.yml`:
    run); every binary links only to the system - `/usr/lib` (the Swift
    runtime in `/usr/lib/swift` included) and `/System`; none asks for a
    macOS newer than 11.0, and the oldest macOS they accept goes into
-   `Info.plist`; the ad-hoc signature verifies.
+   `Info.plist`; the signature verifies.
 2. The zip is unpacked as a person would, the bundle made read-only.
    `Info.plist` has neither `LSUIElement` nor `LSFileQuarantineEnabled`,
    and `CFBundleExecutable` is a Mach-O arm64 executable.
@@ -323,8 +337,8 @@ About twenty minutes.
 
 **First start**
 
-4. Double-click it. Expect the refusal and Open Anyway, as in
-   [The Finder way](#the-finder-way). Note the message you saw.
+4. Double-click it. Expect no refusal (it is notarised). If macOS does
+   refuse, note the message you saw.
 5. Expect within about ten seconds: an Ascella icon in the **Dock** with a
    running dot (the white tile with the eight squares, sized like its
    neighbours), a small window **"Ascella is running at
