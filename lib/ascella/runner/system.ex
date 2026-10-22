@@ -28,8 +28,26 @@ defmodule Ascella.Runner.System do
   # The command runs in a task of its own, so that the deadline can end the
   # wait. The port closes with the task; a program that ignores a closed pipe
   # is then somebody else's to stop, but nobody is waiting for it any more.
+  #
+  # Not linked, and the task rescues its own errors: a port the system would
+  # not open (no processes or file handles to spare, for a moment) used to
+  # raise in a linked task, which took the caller down with it - the process
+  # that looks every few seconds whether the apps are running - until the
+  # supervisor ran out of patience and stopped Ascella altogether. A failed
+  # `pgrep` is an answer, not a reason to leave.
   defp bounded(exe, args, options, timeout) do
-    task = Task.async(fn -> System.cmd(exe, args, options) end)
+    run = fn ->
+      try do
+        System.cmd(exe, args, options)
+      rescue
+        error -> {"#{Path.basename(exe)}: #{Exception.message(error)}", 126}
+      end
+    end
+
+    task =
+      if Process.whereis(Ascella.TaskSupervisor),
+        do: Task.Supervisor.async_nolink(Ascella.TaskSupervisor, run),
+        else: Task.async(run)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
