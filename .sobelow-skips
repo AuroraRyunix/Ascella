@@ -1,4 +1,4 @@
-CI.System: Command Injection via `System` function,lib/ascella/runner/system.ex:32,7D3B5FA
+CI.System: Command Injection via `System` function,lib/ascella/runner/system.ex:41,3A920EB
 Config.CSP: Missing Content-Security-Policy,lib/ascella_web/router.ex:13,3DDBB0E
 Config.HTTPS: HTTPS Not Enabled,config/prod.exs:0,2B5C077
 DOS.StringToAtom: Unsafe `String.to_atom`,lib/ascella/catalogue.ex:225,6C2F7FC
