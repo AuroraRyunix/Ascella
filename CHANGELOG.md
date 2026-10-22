@@ -19,6 +19,8 @@ See [docs/releasing.md](docs/releasing.md).
 
 ## [Unreleased]
 
+- [Fix] **Ascella no longer quits on its own after a while.** On a Mac it checks every few seconds whether each app is running, by asking `pgrep`. When the system briefly refused to start that `pgrep`, the failure travelled back into the checking process and killed it; it restarted, checked, died again, and after a few rounds of that Ascella shut itself down, leaving a crash dump as its note. A command that cannot be started now counts as a failed answer: the app is shown as not running until the next look, and Ascella stays up.
+
 ## [0.3.5] - 2026-10-21
 
 - [Change] **The Mac app is signed with a Developer ID and notarised by Apple.** Until now it was signed with nothing but good intentions, and every Mac that downloaded it asked the arbiter to override Gatekeeper by hand, which is a strange way to greet someone who just installed your software. The release workflow now signs every binary inside Ascella.app, hardened runtime and BEAM entitlements included, sends the bundle to Apple, staples the ticket and checks the verdict with `spctl` before the zip exists. A fork without the secrets still builds, with a warning, ad-hoc signed. The workflow can also be started by hand with *mac_only* to test all this without publishing anything.
